@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
-import 'features/onboarding/presentation/onboarding_screen.dart';
+import 'features/splash/presentation/splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +29,8 @@ class FreshlyApp extends StatelessWidget {
       title: 'Freshly',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const OnboardingScreen(),
+      home: const SplashScreen(),
     );
   }
 }
+
