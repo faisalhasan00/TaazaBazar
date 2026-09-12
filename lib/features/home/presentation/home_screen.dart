@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../categories/presentation/categories_screen.dart';
+import '../../products/data/mock_products_data.dart';
+import '../../products/domain/product_model.dart';
+import '../../products/presentation/product_listing_screen.dart';
 
 /// Freshly Customer Mobile Home Screen matching reference UI design
 class HomeScreen extends StatefulWidget {
@@ -23,41 +27,49 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Map<String, dynamic>> _categories = [
     {
+      'id': 'veg',
       'title': 'Vegetables',
       'emoji': '🥬',
       'bg': const Color(0xFFEDF7EF),
     },
     {
+      'id': 'fruits',
       'title': 'Fruits',
       'emoji': '🍎',
       'bg': const Color(0xFFEDF7EF),
     },
     {
+      'id': 'dairy',
       'title': 'Dairy',
       'emoji': '🥛',
       'bg': const Color(0xFFEDF7EF),
     },
     {
+      'id': 'organic',
       'title': 'Organic',
       'emoji': '🌿',
       'bg': const Color(0xFFEDF7EF),
     },
     {
+      'id': 'dairy',
       'title': 'Milk',
       'emoji': '🍶',
       'bg': const Color(0xFFEDF7EF),
     },
     {
+      'id': 'eggs',
       'title': 'Eggs',
       'emoji': '🥚',
       'bg': const Color(0xFFEDF7EF),
     },
     {
+      'id': 'grocery',
       'title': 'Grocery',
       'emoji': '🛒',
       'bg': const Color(0xFFEDF7EF),
     },
     {
+      'id': 'more',
       'title': 'More',
       'emoji': '•••',
       'bg': const Color(0xFFEDF7EF),
@@ -554,9 +566,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: cardWidth,
                 child: GestureDetector(
                   onTap: () {
-                    setState(() {
-                      _currentNavIndex = 1; // switch to Categories tab
-                    });
+                    if (isMore) {
+                      setState(() {
+                        _currentNavIndex = 1; // switch to Categories tab
+                      });
+                    } else {
+                      final catId = cat['id'] as String? ?? 'veg';
+                      final categoryObj = MockProductsData.getCategoryById(catId) ??
+                          MockProductsData.categories.first;
+                      _navigateToProductListing(categoryObj);
+                    }
                   },
                   child: Column(
                     children: [
@@ -1356,64 +1375,50 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _navigateToProductListing(FreshCategory category) async {
+    final result = await Navigator.push<Map<String, int>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductListingScreen(
+          category: category,
+          initialCartQuantities: _cartQuantities,
+          onCartUpdated: (id, qty) {
+            setState(() {
+              if (qty <= 0) {
+                _cartQuantities.remove(id);
+              } else {
+                _cartQuantities[id] = qty;
+              }
+            });
+          },
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _cartQuantities.clear();
+        _cartQuantities.addAll(result);
+      });
+    }
+  }
+
   // ==========================================
   // OTHER TABS (Categories, Orders, Profile)
   // ==========================================
   Widget _buildCategoriesTabContent() {
-    return Padding(
-      padding: const EdgeInsets.all(18.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Explore All Categories',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.9,
-              ),
-              itemCount: _categories.length - 1, // exclude "More"
-              itemBuilder: (context, index) {
-                final cat = _categories[index];
-                return Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0F8F2),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        cat['emoji'] as String,
-                        style: const TextStyle(fontSize: 36),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        cat['title'] as String,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF1E3A2F),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+    return CategoriesScreen(
+      cartQuantities: _cartQuantities,
+      onCartUpdated: (id, qty) {
+        setState(() {
+          if (qty <= 0) {
+            _cartQuantities.remove(id);
+          } else {
+            _cartQuantities[id] = qty;
+          }
+        });
+      },
+      onCategorySelected: (cat) => _navigateToProductListing(cat),
     );
   }
 

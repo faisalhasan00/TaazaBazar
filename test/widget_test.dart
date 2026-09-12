@@ -193,4 +193,93 @@ void main() {
     expect(find.byType(AddressConfirmationScreen), findsOneWidget);
     expect(find.text('Confirm Location'), findsOneWidget);
   });
+
+  testWidgets('Freshly Categories Screen displays "Shop Fresh", search, and 7 categories',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: HomeScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Categories Tab in bottom navigation
+    await tester.tap(find.text('Categories'));
+    await tester.pumpAndSettle();
+
+    // Verify Categories Screen
+    expect(find.text('Shop Fresh'), findsOneWidget);
+    expect(find.text('Search products...'), findsOneWidget);
+    expect(find.text('7 CATEGORIES'), findsOneWidget);
+
+    // 7 categories
+    expect(find.text('Vegetables'), findsWidgets);
+    expect(find.text('Fruits'), findsWidgets);
+    expect(find.text('Dairy & Milk'), findsOneWidget);
+    expect(find.text('Eggs'), findsWidgets);
+    expect(find.text('Organic'), findsWidgets);
+    expect(find.text('Natural Products'), findsOneWidget);
+    expect(find.text('Grocery'), findsWidgets);
+  });
+
+  testWidgets('Freshly Product Listing Screen displays 2-column grid, filters, sorting and cart indicator',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: HomeScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Categories Tab
+    await tester.tap(find.text('Categories'));
+    await tester.pumpAndSettle();
+
+    // Tap on Vegetables category card
+    await tester.tap(find.byKey(const ValueKey('cat_card_veg')));
+    await tester.pumpAndSettle();
+
+    // Verify Product Listing Screen
+    expect(find.text('Vegetables'), findsWidgets);
+    expect(find.byKey(const ValueKey('product_listing_back_btn')), findsOneWidget);
+    expect(find.byKey(const ValueKey('listing_search_icon')), findsOneWidget);
+
+    // Filter & Sort
+    expect(find.text('Filter'), findsOneWidget);
+    expect(find.text('Sort'), findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
+    expect(find.text('Organic'), findsWidgets);
+
+    // 2-Column Product Grid with sample products
+    expect(find.text('Fresh Tomato'), findsOneWidget);
+    expect(find.text('1 kg'), findsWidgets);
+    expect(find.text('₹40'), findsOneWidget);
+
+    expect(find.text('Farm Spinach (Palak)'), findsOneWidget);
+    expect(find.text('₹20'), findsWidgets);
+
+    // Tap ADD button on Fresh Tomato
+    await tester.tap(find.byKey(const ValueKey('add_btn_v_tomato')));
+    await tester.pumpAndSettle();
+
+    // Verify Cart indicator appears
+    expect(find.text('1 item added'), findsOneWidget);
+    expect(find.text('View Cart'), findsOneWidget);
+
+    // Back button returns to Categories
+    await tester.tap(find.byKey(const ValueKey('product_listing_back_btn')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Shop Fresh'), findsOneWidget);
+  });
 }
