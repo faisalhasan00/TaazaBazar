@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:freshly/features/auth/presentation/login_screen.dart';
+import 'package:freshly/features/cart/presentation/cart_screen.dart';
 import 'package:freshly/features/home/presentation/home_screen.dart';
 import 'package:freshly/features/location/presentation/address_confirmation_screen.dart';
 import 'package:freshly/features/location/presentation/location_setup_screen.dart';
@@ -351,4 +352,116 @@ void main() {
     // Returned to Product Listing with 2 items added
     expect(find.text('2 items added'), findsOneWidget);
   });
+
+  testWidgets('Freshly Cart Screen renders items, quantity controls, coupons, and checkout flow',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: CartScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. App Bar: My Cart and items count
+    expect(find.text('My Cart'), findsOneWidget);
+    expect(find.byKey(const ValueKey('cart_back_button')), findsOneWidget);
+    expect(find.byKey(const ValueKey('clear_cart_btn')), findsOneWidget);
+
+    // 2. Delivery Address Card
+    expect(find.text('Delivering to Home'), findsOneWidget);
+    expect(find.byKey(const ValueKey('change_address_btn')), findsOneWidget);
+    expect(find.textContaining('Morning Slot:'), findsOneWidget);
+
+    // 3. Cart Items List
+    expect(find.text('Items in Cart'), findsOneWidget);
+    expect(find.text('Fresh Tomato'), findsOneWidget);
+    expect(find.text('A2 Cow Milk'), findsOneWidget);
+    expect(find.text('Organic Eggs'), findsOneWidget);
+
+    // 4. Quantity Stepper
+    expect(find.byKey(const ValueKey('cart_increment_v_tomato')), findsOneWidget);
+    expect(find.byKey(const ValueKey('cart_decrement_v_tomato')), findsOneWidget);
+
+    // Tap increment on tomato (starts at 2, goes to 3)
+    await tester.tap(find.byKey(const ValueKey('cart_increment_v_tomato')));
+    await tester.pumpAndSettle();
+    expect(find.text('3'), findsWidgets);
+
+    // 5. Add More Items Button
+    await tester.ensureVisible(find.byKey(const ValueKey('add_more_items_btn')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('add_more_items_btn')), findsOneWidget);
+
+    // 6. Promo Code / Coupons
+    await tester.ensureVisible(find.byKey(const ValueKey('coupon_text_field')));
+    await tester.pumpAndSettle();
+    expect(find.text('Coupons & Offers'), findsOneWidget);
+    expect(find.byKey(const ValueKey('coupon_text_field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('apply_coupon_btn')), findsOneWidget);
+
+    // Apply FRESH50 coupon
+    await tester.enterText(find.byKey(const ValueKey('coupon_text_field')), 'FRESH50');
+    await tester.tap(find.byKey(const ValueKey('apply_coupon_btn')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Code "FRESH50" Applied'), findsOneWidget);
+    expect(find.byKey(const ValueKey('remove_coupon_btn')), findsOneWidget);
+
+    // 7. Bill Details / Summary
+    await tester.ensureVisible(find.text('Bill Details'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bill Details'), findsOneWidget);
+    expect(find.text('Item Total'), findsOneWidget);
+    expect(find.text('Delivery Partner Fee'), findsOneWidget);
+    expect(find.text('Grand Total'), findsOneWidget);
+
+    // 8. Sticky Proceed to Checkout button
+    expect(find.byKey(const ValueKey('proceed_to_checkout_btn')), findsOneWidget);
+    expect(find.text('TOTAL TO PAY'), findsOneWidget);
+
+    // Tap Proceed to Checkout
+    await tester.tap(find.byKey(const ValueKey('proceed_to_checkout_btn')));
+    await tester.pumpAndSettle();
+
+    // Order Placed confirmation sheet displays
+    expect(find.text('Order Placed Successfully!'), findsOneWidget);
+    expect(find.text('Continue Shopping'), findsOneWidget);
+
+    // Tap Continue Shopping to reset
+    await tester.tap(find.text('Continue Shopping'));
+    await tester.pumpAndSettle();
+
+    // Now in empty cart state
+    expect(find.text('Your cart is empty'), findsOneWidget);
+    expect(find.byKey(const ValueKey('start_shopping_btn')), findsOneWidget);
+  });
+
+  testWidgets('Freshly Empty Cart state displays illustration, message, and start shopping button',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: CartScreen(initialItems: []),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('My Cart'), findsOneWidget);
+    expect(find.text('Your cart is empty'), findsOneWidget);
+    expect(
+      find.text(
+        'Looks like you haven’t added anything to your cart yet. Explore fresh produce, milk & daily essentials from local organic farms.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('start_shopping_btn')), findsOneWidget);
+    expect(find.text('Daily Fresh Essentials'), findsOneWidget);
+  });
 }
+

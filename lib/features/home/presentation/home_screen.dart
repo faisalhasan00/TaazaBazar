@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../cart/domain/cart_item.dart';
+import '../../cart/presentation/cart_screen.dart';
 import '../../categories/presentation/categories_screen.dart';
 import '../../products/data/mock_products_data.dart';
 import '../../products/domain/product_model.dart';
@@ -346,7 +348,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 clipBehavior: Clip.none,
                 children: [
                   IconButton(
-                    onPressed: () {},
+                    key: const ValueKey('home_cart_btn'),
+                    onPressed: () => _openCartScreen(locationName),
                     icon: const Icon(
                       Icons.shopping_cart_outlined,
                       color: Color(0xFF1E293B),
@@ -1455,6 +1458,55 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _cartQuantities.clear();
         _cartQuantities.addAll(result);
+      });
+    }
+  }
+
+  List<CartItem> _getCartItems() {
+    if (_cartQuantities.isEmpty) {
+      return [];
+    }
+    final List<CartItem> items = [];
+    _cartQuantities.forEach((id, qty) {
+      if (qty > 0) {
+        final product = MockProductsData.allProducts.firstWhere(
+          (p) => p.id == id,
+          orElse: () => Product(
+            id: id,
+            name: 'Fresh Harvest Item',
+            categoryId: 'veg',
+            categoryName: 'Vegetables',
+            unit: '1 kg',
+            price: 40,
+            emoji: '🥬',
+          ),
+        );
+        items.add(CartItem(product: product, quantity: qty));
+      }
+    });
+    return items;
+  }
+
+  void _openCartScreen(String locationName) async {
+    final items = _getCartItems();
+    final result = await Navigator.push<List<CartItem>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CartScreen(
+          initialItems: items.isEmpty ? null : items,
+          deliveryAddress: locationName,
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _cartQuantities.clear();
+        for (var item in result) {
+          if (item.quantity > 0) {
+            _cartQuantities[item.product.id] = item.quantity;
+          }
+        }
       });
     }
   }

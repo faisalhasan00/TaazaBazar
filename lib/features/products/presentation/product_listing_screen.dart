@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../cart/domain/cart_item.dart';
+import '../../cart/presentation/cart_screen.dart';
 import '../data/mock_products_data.dart';
 import '../domain/product_model.dart';
 import 'product_details_screen.dart';
@@ -1053,16 +1055,38 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
           ),
           const SizedBox(width: 8),
           ElevatedButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: const Color(0xFF1B6E38),
-                  content: Text(
-                    'Cart updated with $count items (₹${_totalCartSubtotal.toInt()})',
-                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            key: const ValueKey('listing_view_cart_btn'),
+            onPressed: () async {
+              final List<CartItem> items = [];
+              _cartQuantities.forEach((id, qty) {
+                if (qty > 0) {
+                  final product = MockProductsData.allProducts.firstWhere(
+                    (p) => p.id == id,
+                    orElse: () => MockProductsData.allProducts[0],
+                  );
+                  items.add(CartItem(product: product, quantity: qty));
+                }
+              });
+
+              final result = await Navigator.push<List<CartItem>>(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CartScreen(
+                    initialItems: items.isEmpty ? null : items,
                   ),
                 ),
               );
+
+              if (result != null) {
+                setState(() {
+                  _cartQuantities.clear();
+                  for (var item in result) {
+                    if (item.quantity > 0) {
+                      _cartQuantities[item.product.id] = item.quantity;
+                    }
+                  }
+                });
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
