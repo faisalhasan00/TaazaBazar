@@ -92,9 +92,72 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(HomeScreen), findsOneWidget);
-    expect(find.text('Explore Categories'), findsOneWidget);
+    expect(find.text('Shop by Category'), findsOneWidget);
+    expect(find.text('Vegetables'), findsOneWidget);
+    expect(find.text('Freshness Delivered Daily'), findsOneWidget);
+  });
+
+  testWidgets('Freshly Home Screen renders full header, banner, categories, products, pass and nav',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: HomeScreen(
+          selectedSociety: 'Prestige High Fields',
+          deliveryAddress: 'Flat 402, Oakwood, Prestige High Fields',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Header
+    expect(find.text('Freshly'), findsOneWidget);
+    expect(find.text('DELIVER TO'), findsOneWidget);
+    expect(find.text('Search vegetables, milk, fruits...'), findsOneWidget);
+
+    // 2. Promo Banner
+    expect(find.text('Freshness Delivered Daily'), findsOneWidget);
+    expect(
+      find.text('Fresh vegetables, dairy & organic products at your doorstep.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('banner_shop_now_btn')), findsOneWidget);
+
+    // 3. Shop by Category
+    expect(find.text('Shop by Category'), findsOneWidget);
     expect(find.text('Vegetables'), findsOneWidget);
     expect(find.text('Fruits'), findsOneWidget);
+    expect(find.text('Dairy'), findsOneWidget);
+    expect(find.text('Eggs'), findsOneWidget);
+
+    // 4. Freshly Pass
+    expect(find.text('Save More with Freshly Pass'), findsOneWidget);
+    expect(find.text('Get better value with Weekly & Monthly plans.'), findsOneWidget);
+    expect(find.byKey(const ValueKey('view_plans_btn')), findsOneWidget);
+
+    // 5. Popular Near You
+    expect(find.text('Popular Near You'), findsOneWidget);
+    expect(find.text('Fresh Tomato'), findsOneWidget);
+    expect(find.text('Fresh Milk'), findsOneWidget);
+    expect(find.text('Organic Eggs'), findsOneWidget);
+    expect(find.text('Spinach'), findsOneWidget);
+
+    // 6. Bottom Navigation (5 items)
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Categories'), findsOneWidget);
+    expect(find.text('Orders'), findsOneWidget);
+    expect(find.text('Pass'), findsOneWidget);
+    expect(find.text('Profile'), findsOneWidget);
+
+    // 7. Interactive ADD button on products
+    expect(find.text('ADD'), findsWidgets);
+    await tester.tap(find.text('ADD').first);
+    await tester.pumpAndSettle();
+    expect(find.text('1'), findsOneWidget);
   });
 
   testWidgets('Freshly Manual Address Form -> Save -> Confirm flow',
