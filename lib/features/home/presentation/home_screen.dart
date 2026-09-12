@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../categories/presentation/categories_screen.dart';
 import '../../products/data/mock_products_data.dart';
 import '../../products/domain/product_model.dart';
+import '../../products/presentation/product_details_screen.dart';
 import '../../products/presentation/product_listing_screen.dart';
 
 /// Freshly Customer Mobile Home Screen matching reference UI design
@@ -643,6 +644,53 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _openProductDetailsForDeal(Map<String, dynamic> item) async {
+    final name = item['name'] as String;
+    final product = MockProductsData.allProducts.firstWhere(
+      (p) => p.name.toLowerCase().contains(name.toLowerCase()),
+      orElse: () => Product(
+        id: item['id'] as String,
+        name: name,
+        categoryId: 'veg',
+        categoryName: 'Fresh Deals',
+        unit: '1 kg',
+        price: double.tryParse((item['unitPrice'] as String).replaceAll(RegExp(r'[^0-9.]'), '')) ?? 25,
+        emoji: item['emoji'] as String,
+        bgColor: item['bgColor'] as Color? ?? const Color(0xFFF0FDF4),
+      ),
+    );
+
+    final result = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductDetailsScreen(
+          product: product,
+          deliveryAddress: widget.deliveryAddress,
+          initialQuantity: _cartQuantities[product.id] ?? 0,
+          onCartUpdated: (id, q) {
+            setState(() {
+              if (q <= 0) {
+                _cartQuantities.remove(id);
+              } else {
+                _cartQuantities[id] = q;
+              }
+            });
+          },
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        if (result <= 0) {
+          _cartQuantities.remove(product.id);
+        } else {
+          _cartQuantities[product.id] = result;
+        }
+      });
+    }
+  }
+
   /// 5. Fresh Deals Horizontal Card Row
   Widget _buildFreshDealsRow() {
     return SizedBox(
@@ -679,27 +727,35 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Centered Produce Visual
+                // Centered Produce Visual (tappable to details)
                 Expanded(
-                  child: Center(
-                    child: Text(
-                      item['emoji'] as String,
-                      style: const TextStyle(fontSize: 48),
+                  child: GestureDetector(
+                    key: ValueKey('deal_img_$id'),
+                    onTap: () => _openProductDetailsForDeal(item),
+                    child: Center(
+                      child: Text(
+                        item['emoji'] as String,
+                        style: const TextStyle(fontSize: 48),
+                      ),
                     ),
                   ),
                 ),
 
                 const SizedBox(height: 6),
 
-                // Name
-                Text(
-                  item['name'] as String,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
+                // Name (tappable to details)
+                GestureDetector(
+                  key: ValueKey('deal_title_$id'),
+                  onTap: () => _openProductDetailsForDeal(item),
+                  child: Text(
+                    item['name'] as String,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 2),

@@ -282,4 +282,73 @@ void main() {
 
     expect(find.text('Shop Fresh'), findsOneWidget);
   });
+
+  testWidgets('Freshly Product Details Screen renders hero image, benefits, delivery, stepper and Add to Cart',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: HomeScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap on Vegetables category
+    await tester.tap(find.text('Categories'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('cat_card_veg')));
+    await tester.pumpAndSettle();
+
+    // Tap on Fresh Tomato card title/image to open Product Details
+    await tester.tap(find.byKey(const ValueKey('product_card_title_v_tomato')));
+    await tester.pumpAndSettle();
+
+    // 1. Details Header & Icons
+    expect(find.byKey(const ValueKey('product_details_back_btn')), findsOneWidget);
+    expect(find.byKey(const ValueKey('product_details_favorite_btn')), findsOneWidget);
+    expect(find.byKey(const ValueKey('product_details_share_btn')), findsOneWidget);
+
+    // 2. Product Name, Rating & Unit
+    expect(find.text('Fresh Tomato'), findsWidgets);
+    expect(find.text('(340 reviews)'), findsOneWidget);
+    expect(find.text('Select Pack Size'), findsOneWidget);
+
+    // 3. Stepper (+ / -)
+    expect(find.text('Quantity'), findsOneWidget);
+    expect(find.byKey(const ValueKey('stepper_increment_btn')), findsOneWidget);
+    expect(find.byKey(const ValueKey('stepper_decrement_btn')), findsOneWidget);
+
+    // Tap increment to make quantity 2
+    await tester.ensureVisible(find.byKey(const ValueKey('stepper_increment_btn')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('stepper_increment_btn')));
+    await tester.pumpAndSettle();
+    expect(find.text('2'), findsWidgets);
+
+    // 4. Quality Guarantee Banner & Delivery Info
+    expect(find.text('Freshly Farm-Purity Guarantee'), findsOneWidget);
+    expect(find.text('Morning Harvest Delivery'), findsOneWidget);
+
+    // 5. Product Description & Key Benefits
+    expect(find.text('Product Description'), findsOneWidget);
+    expect(find.text('Key Benefits'), findsOneWidget);
+    expect(find.text('Farm Origin'), findsOneWidget);
+
+    // 6. Sticky Bottom Bar with Total Price & Add to Cart
+    expect(find.text('Total Price'), findsOneWidget);
+    expect(find.text('₹80'), findsOneWidget); // 2 * 40
+    expect(find.byKey(const ValueKey('details_add_to_cart_btn')), findsOneWidget);
+
+    // Tap Add to Cart
+    await tester.tap(find.byKey(const ValueKey('details_add_to_cart_btn')));
+    await tester.pumpAndSettle();
+
+    // Returned to Product Listing with 2 items added
+    expect(find.text('2 items added'), findsOneWidget);
+  });
 }

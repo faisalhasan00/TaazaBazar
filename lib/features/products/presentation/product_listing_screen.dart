@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/mock_products_data.dart';
 import '../domain/product_model.dart';
+import 'product_details_screen.dart';
 
 class ProductListingScreen extends StatefulWidget {
   final FreshCategory category;
@@ -26,6 +27,39 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
   String _searchQuery = '';
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
+
+  void _openProductDetails(Product product) async {
+    final result = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductDetailsScreen(
+          product: product,
+          initialQuantity: _cartQuantities[product.id] ?? 0,
+          onCartUpdated: (id, q) {
+            setState(() {
+              if (q <= 0) {
+                _cartQuantities.remove(id);
+              } else {
+                _cartQuantities[id] = q;
+              }
+            });
+            widget.onCartUpdated?.call(id, q);
+          },
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        if (result <= 0) {
+          _cartQuantities.remove(product.id);
+        } else {
+          _cartQuantities[product.id] = result;
+        }
+      });
+      widget.onCartUpdated?.call(product.id, result);
+    }
+  }
 
   final List<String> _filters = ['All', 'Organic', 'Under ₹50', 'Deals'];
   final List<String> _sortOptions = [
@@ -680,101 +714,105 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Image / Visual with Badge & Organic Tag
+          // Top Image / Visual with Badge & Organic Tag (tappable to details)
           Expanded(
             flex: 5,
-            child: Stack(
-              children: [
-                // Background Soft Color Container
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: product.bgColor,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
-                  ),
-                  child: Center(
-                    child: Text(
-                      product.emoji,
-                      style: const TextStyle(fontSize: 52),
-                    ),
-                  ),
-                ),
-
-                // Top Left Badge (e.g. POPULAR, 20% OFF)
-                if (product.badge != null)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1B6E38),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        product.badge!,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                    ),
-                  )
-                else if (product.discountPercentage > 0)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE11D48),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${product.discountPercentage}% OFF',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // Top Right Rating Pill
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            child: GestureDetector(
+              key: ValueKey('product_card_img_${product.id}'),
+              onTap: () => _openProductDetails(product),
+              child: Stack(
+                children: [
+                  // Background Soft Color Container
+                  Container(
+                    width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(8),
+                      color: product.bgColor,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.star_rounded,
-                          size: 12,
-                          color: Color(0xFFF59E0B),
+                    child: Center(
+                      child: Text(
+                        product.emoji,
+                        style: const TextStyle(fontSize: 52),
+                      ),
+                    ),
+                  ),
+
+                  // Top Left Badge (e.g. POPULAR, 20% OFF)
+                  if (product.badge != null)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1B6E38),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${product.rating}',
+                        child: Text(
+                          product.badge!,
                           style: GoogleFonts.plusJakartaSans(
-                            fontSize: 10,
+                            fontSize: 8.5,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFF0F172A),
+                            color: Colors.white,
+                            letterSpacing: 0.4,
                           ),
                         ),
-                      ],
+                      ),
+                    )
+                  else if (product.discountPercentage > 0)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE11D48),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${product.discountPercentage}% OFF',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Top Right Rating Pill
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 12,
+                            color: Color(0xFFF59E0B),
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${product.rating}',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
@@ -787,33 +825,37 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Product Name & Weight
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        product.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0F172A),
-                          letterSpacing: -0.2,
+                  // Product Name & Weight (tappable to details)
+                  GestureDetector(
+                    key: ValueKey('product_card_title_${product.id}'),
+                    onTap: () => _openProductDetails(product),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0F172A),
+                            letterSpacing: -0.2,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        product.unit,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF64748B),
+                        const SizedBox(height: 2),
+                        Text(
+                          product.unit,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF64748B),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
 
                   // Price & Interactive Add / Stepper Button Row
