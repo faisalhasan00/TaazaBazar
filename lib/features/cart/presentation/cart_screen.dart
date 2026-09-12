@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../checkout/presentation/checkout_screen.dart';
 import '../../products/data/mock_products_data.dart';
 import '../../products/domain/product_model.dart';
 import '../../products/presentation/product_details_screen.dart';
@@ -274,11 +275,16 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   void _proceedToCheckout() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _buildCheckoutConfirmationSheet(ctx),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CheckoutScreen(
+          items: _items,
+          deliveryAddress: _currentAddress,
+          appliedCoupon: _appliedCoupon,
+          couponDiscount: _couponDiscount,
+        ),
+      ),
     );
   }
 

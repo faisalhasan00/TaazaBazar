@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:freshly/features/auth/presentation/login_screen.dart';
+import 'package:freshly/features/cart/domain/cart_item.dart';
 import 'package:freshly/features/cart/presentation/cart_screen.dart';
+import 'package:freshly/features/checkout/presentation/checkout_screen.dart';
+import 'package:freshly/features/checkout/presentation/order_success_screen.dart';
 import 'package:freshly/features/home/presentation/home_screen.dart';
 import 'package:freshly/features/location/presentation/address_confirmation_screen.dart';
 import 'package:freshly/features/location/presentation/location_setup_screen.dart';
 import 'package:freshly/features/location/presentation/manual_address_screen.dart';
 import 'package:freshly/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:freshly/features/products/data/mock_products_data.dart';
 import 'package:freshly/features/splash/presentation/widgets/freshly_logo.dart';
 import 'package:freshly/main.dart';
 
@@ -426,21 +430,34 @@ void main() {
     expect(find.byKey(const ValueKey('proceed_to_checkout_btn')), findsOneWidget);
     expect(find.text('TOTAL TO PAY'), findsOneWidget);
 
-    // Tap Proceed to Checkout
+    // Tap Proceed to Checkout to go to CheckoutScreen
     await tester.tap(find.byKey(const ValueKey('proceed_to_checkout_btn')));
     await tester.pumpAndSettle();
 
-    // Order Placed confirmation sheet displays
-    expect(find.text('Order Placed Successfully!'), findsOneWidget);
-    expect(find.text('Continue Shopping'), findsOneWidget);
+    // Verify CheckoutScreen is opened
+    expect(find.text('Checkout'), findsOneWidget);
+    expect(find.text('Delivery Address'), findsOneWidget);
+    expect(find.text('Delivery Schedule'), findsOneWidget);
+    expect(find.text('Payment Method'), findsOneWidget);
+    expect(find.text('Bill Summary'), findsOneWidget);
+    expect(find.byKey(const ValueKey('place_order_btn')), findsOneWidget);
 
-    // Tap Continue Shopping to reset
-    await tester.tap(find.text('Continue Shopping'));
+    // Tap Place Order
+    await tester.tap(find.byKey(const ValueKey('place_order_btn')));
     await tester.pumpAndSettle();
 
-    // Now in empty cart state
-    expect(find.text('Your cart is empty'), findsOneWidget);
-    expect(find.byKey(const ValueKey('start_shopping_btn')), findsOneWidget);
+    // Verify OrderSuccessScreen is opened with mock Order ID and delivery info
+    expect(find.text('Order Placed Successfully!'), findsOneWidget);
+    expect(find.text('Order ID'), findsOneWidget);
+    expect(find.byKey(const ValueKey('order_id_text')), findsOneWidget);
+    expect(find.textContaining('FRSH-'), findsOneWidget);
+    expect(find.byKey(const ValueKey('estimated_delivery_text')), findsOneWidget);
+    expect(find.byKey(const ValueKey('order_success_home_btn')), findsOneWidget);
+
+    // Tap Back to Home
+    await tester.tap(find.byKey(const ValueKey('order_success_home_btn')));
+    await tester.pumpAndSettle();
+    expect(find.text('Fresh Deals'), findsOneWidget);
   });
 
   testWidgets('Freshly Empty Cart state displays illustration, message, and start shopping button',
@@ -463,5 +480,73 @@ void main() {
     expect(find.byKey(const ValueKey('start_shopping_btn')), findsOneWidget);
     expect(find.text('Daily Fresh Essentials'), findsOneWidget);
   });
+
+  testWidgets('Freshly Checkout Screen allows slot selection, payment choice and place order',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final mockItems = [
+      CartItem(
+        product: MockProductsData.allProducts[0],
+        quantity: 2,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CheckoutScreen(
+          items: mockItems,
+          appliedCoupon: 'FRESH50',
+          couponDiscount: 50,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify Checkout Header & Address
+    expect(find.text('Checkout'), findsOneWidget);
+    expect(find.text('Delivery Address'), findsOneWidget);
+    expect(find.byKey(const ValueKey('checkout_change_address_btn')), findsOneWidget);
+
+    // Verify Schedule & Slots
+    expect(find.text('Delivery Schedule'), findsOneWidget);
+    expect(find.text('6:00 AM – 8:00 AM'), findsOneWidget);
+    expect(find.text('8:00 AM – 10:00 AM'), findsOneWidget);
+
+    // Select evening slot
+    await tester.tap(find.text('5:00 PM – 7:00 PM'));
+    await tester.pumpAndSettle();
+
+    // Verify Payment Method selection
+    expect(find.text('Payment Method'), findsOneWidget);
+    expect(find.byKey(const ValueKey('payment_method_upi')), findsOneWidget);
+    expect(find.byKey(const ValueKey('payment_method_card')), findsOneWidget);
+
+    // Select UPI
+    await tester.tap(find.byKey(const ValueKey('payment_method_upi')));
+    await tester.pumpAndSettle();
+
+    // Verify Bill Summary
+    expect(find.text('Bill Summary'), findsOneWidget);
+    expect(find.text('Item Total'), findsOneWidget);
+    expect(find.text('Coupon Discount (FRESH50)'), findsOneWidget);
+
+    // Tap Place Order
+    expect(find.byKey(const ValueKey('place_order_btn')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('place_order_btn')));
+    await tester.pumpAndSettle();
+
+    // Order Success Screen rendered
+    expect(find.text('Order Placed Successfully!'), findsOneWidget);
+    expect(find.byKey(const ValueKey('order_id_text')), findsOneWidget);
+    expect(find.text('Instant UPI'), findsOneWidget);
+    expect(find.text('Mock Paid'), findsOneWidget);
+  });
 }
+
 
