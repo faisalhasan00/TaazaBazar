@@ -43,11 +43,3 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-*.aab
-
-# Web / Node
-node_modules/
-**/node_modules/
-privacy_policy_web/dist/
-privacy_policy_web/node_modules/
-
