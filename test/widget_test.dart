@@ -9,6 +9,7 @@ import 'package:freshly/features/location/presentation/address_confirmation_scre
 import 'package:freshly/features/location/presentation/location_setup_screen.dart';
 import 'package:freshly/features/location/presentation/manual_address_screen.dart';
 import 'package:freshly/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:freshly/features/orders/presentation/orders_screen.dart';
 import 'package:freshly/features/products/data/mock_products_data.dart';
 import 'package:freshly/features/splash/presentation/widgets/freshly_logo.dart';
 import 'package:freshly/main.dart';
@@ -545,6 +546,70 @@ void main() {
     expect(find.byKey(const ValueKey('order_id_text')), findsOneWidget);
     expect(find.text('Instant UPI'), findsOneWidget);
     expect(find.text('Mock Paid'), findsOneWidget);
+  });
+
+  testWidgets('Freshly Orders Screen displays active tabs, timeline, track order and details',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: OrdersScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify App Bar & Tabs
+    expect(find.text('My Orders'), findsOneWidget);
+    expect(find.text('Active'), findsOneWidget);
+    expect(find.text('Previous'), findsOneWidget);
+
+    // Verify Active Order Card
+    expect(find.text('#FRSH-89421'), findsOneWidget);
+    expect(find.text('Out for Delivery'), findsWidgets);
+    expect(find.text('LIVE STATUS'), findsWidgets);
+    expect(find.text('Track Order'), findsWidgets);
+    expect(find.text('View Details'), findsWidgets);
+
+    // Open Track Order Sheet
+    await tester.tap(find.text('Track Order').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('LIVE TRACKING'), findsOneWidget);
+    expect(find.text('Track Order #FRSH-89421'), findsOneWidget);
+    expect(find.text('Ramesh Kumar'), findsOneWidget);
+    expect(find.text('Delivery Safety PIN: 4821 (Share upon arrival)'), findsOneWidget);
+    expect(find.text('Live Tracking Milestones'), findsOneWidget);
+
+    // Close Track Order Sheet
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+
+    // Open Order Details Sheet
+    await tester.tap(find.text('View Details').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Order Details'), findsOneWidget);
+    expect(find.text('Bill Summary'), findsOneWidget);
+    expect(find.text('Grand Total'), findsOneWidget);
+    expect(find.text('Invoice'), findsOneWidget);
+
+    // Close Details Sheet
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+
+    // Switch to Previous Orders Tab
+    await tester.tap(find.text('Previous'));
+    await tester.pumpAndSettle();
+
+    // Verify Previous Orders
+    expect(find.text('#FRSH-74109'), findsOneWidget);
+    expect(find.text('DELIVERED'), findsWidgets);
+    expect(find.text('Reorder'), findsWidgets);
+    expect(find.text('Produce Freshness:'), findsWidgets);
+
+    // Tap Reorder
+    await tester.tap(find.text('Reorder').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Added 4 items from #FRSH-74109 back to your cart! 🛒'), findsOneWidget);
   });
 }
 

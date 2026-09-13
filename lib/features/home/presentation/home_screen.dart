@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../cart/domain/cart_item.dart';
 import '../../cart/presentation/cart_screen.dart';
 import '../../categories/presentation/categories_screen.dart';
+import '../../orders/presentation/orders_screen.dart';
 import '../../products/data/mock_products_data.dart';
 import '../../products/domain/product_model.dart';
 import '../../products/presentation/product_details_screen.dart';
@@ -1531,38 +1532,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildOrdersTabContent() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.receipt_long_rounded,
-              size: 64,
-              color: Color(0xFF1B6E38),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'No Active Orders',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Your morning delivery will appear here once you place an order.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                color: const Color(0xFF64748B),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return OrdersScreen(
+      onStartShopping: () {
+        setState(() {
+          _currentNavIndex = 0;
+        });
+      },
     );
   }
 
