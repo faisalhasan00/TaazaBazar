@@ -43,6 +43,7 @@ class _OrdersScreenState extends State<OrdersScreen>
   }
 
   void _handleReorder(CustomerOrder order) {
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(

@@ -130,17 +130,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _decrementProduct(String id) {
-    setState(() {
-      final current = _cartQuantities[id] ?? 0;
-      if (current <= 1) {
-        _cartQuantities.remove(id);
-      } else {
-        _cartQuantities[id] = current - 1;
-      }
-    });
-  }
-
   int get _totalCartCount {
     int total = 2; // base mock from reference UI (2 items in cart)
     for (var count in _cartQuantities.values) {

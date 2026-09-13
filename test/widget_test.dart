@@ -9,6 +9,7 @@ import 'package:freshly/features/location/presentation/address_confirmation_scre
 import 'package:freshly/features/location/presentation/location_setup_screen.dart';
 import 'package:freshly/features/location/presentation/manual_address_screen.dart';
 import 'package:freshly/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:freshly/features/orders/presentation/order_tracking_screen.dart';
 import 'package:freshly/features/orders/presentation/orders_screen.dart';
 import 'package:freshly/features/products/data/mock_products_data.dart';
 import 'package:freshly/features/splash/presentation/widgets/freshly_logo.dart';
@@ -550,6 +551,13 @@ void main() {
 
   testWidgets('Freshly Orders Screen displays active tabs, timeline, track order and details',
       (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     await tester.pumpWidget(
       const MaterialApp(
         home: OrdersScreen(),
@@ -569,18 +577,36 @@ void main() {
     expect(find.text('Track Order'), findsWidgets);
     expect(find.text('View Details'), findsWidgets);
 
-    // Open Track Order Sheet
+    // Open Track Order Screen
     await tester.tap(find.text('Track Order').first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
+    expect(find.text('Track Order'), findsOneWidget);
     expect(find.text('LIVE TRACKING'), findsOneWidget);
-    expect(find.text('Track Order #FRSH-89421'), findsOneWidget);
+    expect(find.text('Your Fresh Produce is on the Way! 🚴'), findsOneWidget);
+    expect(find.text('Sunrise Organic Farm'), findsOneWidget);
+    expect(find.text('Indiranagar Home'), findsOneWidget);
     expect(find.text('Ramesh Kumar'), findsOneWidget);
-    expect(find.text('Delivery Safety PIN: 4821 (Share upon arrival)'), findsOneWidget);
-    expect(find.text('Live Tracking Milestones'), findsOneWidget);
+    expect(find.text('Delivery Safety PIN: 4821'), findsOneWidget);
+    expect(find.text('Milestone Details'), findsOneWidget);
+    expect(find.text('Call Partner'), findsOneWidget);
 
-    // Close Track Order Sheet
-    await tester.tap(find.byIcon(Icons.close_rounded));
+    // Open Need Help Modal
+    expect(find.text('Need Help?'), findsOneWidget);
+    await tester.tap(find.text('Need Help?'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Chat with Freshly Support'), findsOneWidget);
+    expect(find.text('Change Delivery Instructions'), findsOneWidget);
+
+    // Close help modal
+    await tester.tap(find.text('Change Delivery Instructions'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // Pop back to Orders Screen
+    await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
     await tester.pumpAndSettle();
 
     // Open Order Details Sheet
@@ -607,9 +633,49 @@ void main() {
     expect(find.text('Produce Freshness:'), findsWidgets);
 
     // Tap Reorder
+    await tester.ensureVisible(find.text('Reorder').first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Reorder').first);
     await tester.pumpAndSettle();
     expect(find.text('Added 4 items from #FRSH-74109 back to your cart! 🛒'), findsOneWidget);
+  });
+
+  testWidgets('Freshly Order Tracking Screen renders map, rider card, timeline, address and items',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: OrderTrackingScreen(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // Verify App bar & Hero
+    expect(find.text('Track Order'), findsOneWidget);
+    expect(find.text('#FRSH-89421'), findsOneWidget);
+    expect(find.text('Your Fresh Produce is on the Way! 🚴'), findsOneWidget);
+    expect(find.text('100% Insulated Cold-Chain & Chemical Free'), findsOneWidget);
+
+    // Verify Mock Vector Map
+    expect(find.text('Sunrise Organic Farm'), findsOneWidget);
+    expect(find.text('Indiranagar Home'), findsOneWidget);
+    expect(find.text('2.4 km away • ETA 15 mins'), findsOneWidget);
+
+    // Verify Status Timeline
+    expect(find.text('Order Status Timeline'), findsOneWidget);
+    expect(find.text('LIVE STATUS'), findsOneWidget);
+
+    // Verify Delivery Partner Card
+    expect(find.text('Delivery Partner'), findsOneWidget);
+    expect(find.text('Ramesh Kumar'), findsOneWidget);
+    expect(find.text('Freshly Super Rider • 4.9 ★ (1,240 drops)'), findsOneWidget);
+    expect(find.text('Delivery Safety PIN: 4821'), findsOneWidget);
+
+    // Verify Delivery Address & Ordered Items
+    expect(find.text('Delivery Address'), findsOneWidget);
+    expect(find.text('Ordered Items (3)'), findsOneWidget);
+    expect(find.text('Total Amount Paid'), findsOneWidget);
+    expect(find.text('₹240'), findsOneWidget);
   });
 }
 

@@ -81,17 +81,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return widget.items.fold(0.0, (sum, item) => sum + item.originalSubtotal);
   }
 
-  double get _productDiscount => _originalItemTotal - _itemTotal;
-
   double get _deliveryFee => _itemTotal >= 199 ? 0.0 : 25.0;
 
   double get _grandTotal {
     final total = _itemTotal + _deliveryFee - widget.couponDiscount;
     return total > 0 ? total : 0.0;
   }
-
-  double get _totalSavings =>
-      _productDiscount + widget.couponDiscount + (_deliveryFee == 0 ? 25.0 : 0.0);
 
   void _changeAddress() {
     showModalBottomSheet(

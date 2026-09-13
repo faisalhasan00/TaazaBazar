@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../domain/customer_order.dart';
+import '../order_tracking_screen.dart';
 import 'order_details_sheet.dart';
 import 'order_status_timeline.dart';
-import 'track_order_sheet.dart';
 
 /// Card component for an active / in-progress customer order
 class ActiveOrderCard extends StatelessWidget {
@@ -211,7 +211,13 @@ class ActiveOrderCard extends StatelessWidget {
                       ],
                     ),
                     child: ElevatedButton.icon(
-                      onPressed: () => TrackOrderSheet.show(context, order),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => OrderTrackingScreen(order: order),
+                          ),
+                        );
+                      },
                       icon: const Icon(
                         Icons.near_me_rounded,
                         size: 18,
