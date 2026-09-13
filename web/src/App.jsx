@@ -11,27 +11,82 @@ import { termsSections } from './data/termsData';
 import { Shield, FileText, Trash2, PhoneCall, Search, Calendar, CheckCircle2 } from 'lucide-react';
 import './App.css';
 
+// Helper to determine tab from pathname and hash
+function getTabFromUrl() {
+  const path = window.location.pathname.toLowerCase();
+  const hash = window.location.hash.toLowerCase().replace('#', '');
+  
+  if (path.includes('terms') || hash.includes('terms')) {
+    return 'terms';
+  }
+  if (path.includes('deletion') || path.includes('delete') || hash.includes('deletion') || hash.includes('data-deletion')) {
+    return 'deletion';
+  }
+  if (path.includes('contact') || path.includes('grievance') || hash.includes('contact') || hash.includes('grievance')) {
+    return 'contact';
+  }
+  return 'privacy';
+}
+
+function getPathForTab(tab) {
+  switch (tab) {
+    case 'terms':
+      return '/terms&Compliance';
+    case 'deletion':
+      return '/data-deletion';
+    case 'contact':
+      return '/grievance';
+    case 'privacy':
+    default:
+      return '/privacy-policy';
+  }
+}
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState('privacy'); // 'privacy' | 'terms' | 'deletion' | 'contact'
+  const [activeTab, setActiveTab] = useState(getTabFromUrl);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSection, setActiveSection] = useState('overview');
 
-  // Handle URL Hash navigation
+  // Listen to popstate (browser back / forward buttons) and hash changes
   useEffect(() => {
-    const hash = window.location.hash.replace('#', '');
-    if (hash === 'terms') setActiveTab('terms');
-    else if (hash === 'deletion' || hash === 'data-deletion') setActiveTab('deletion');
-    else if (hash === 'contact' || hash === 'grievance') setActiveTab('contact');
-    else if (hash) {
-      setActiveTab('privacy');
-      setActiveSection(hash);
-    }
+    const handleLocationChange = () => {
+      const tab = getTabFromUrl();
+      setActiveTab(tab);
+      const hash = window.location.hash.replace('#', '');
+      if (hash && hash !== 'terms' && hash !== 'deletion' && hash !== 'contact') {
+        setActiveSection(hash);
+      }
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
   }, []);
 
-  // Update hash when tab changes
+  // Update URL path and title when tab changes
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setSearchQuery('');
+    
+    const newPath = getPathForTab(tab);
+    if (window.location.pathname !== newPath) {
+      window.history.pushState({ tab }, '', newPath);
+    }
+    
+    // Update document title dynamically
+    if (tab === 'terms') {
+      document.title = 'TaazaBazar — Terms & Conditions and Compliance';
+    } else if (tab === 'deletion') {
+      document.title = 'TaazaBazar — Request Account & Data Deletion';
+    } else if (tab === 'contact') {
+      document.title = 'TaazaBazar — Grievance Redressal & Support';
+    } else {
+      document.title = 'TaazaBazar — Privacy Policy & Data Safety';
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
