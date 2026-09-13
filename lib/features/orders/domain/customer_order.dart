@@ -5,7 +5,7 @@ import '../../checkout/domain/order_model.dart';
 enum OrderStatus {
   placed('Order Placed', 'Order confirmed & sent to farm', 0),
   preparing('Preparing', 'Farm harvest & eco-packaging', 1),
-  outForDelivery('Out for Delivery', 'On the way with Freshly Rider', 2),
+  outForDelivery('Out for Delivery', 'On the way with Taaza Rider', 2),
   delivered('Delivered', 'Delivered to your doorstep', 3),
   cancelled('Cancelled', 'Order was cancelled', -1);
 

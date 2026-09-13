@@ -229,7 +229,7 @@ class TrackOrderSheet extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Freshly Super Rider • 4.9 ★ (1.2k drops)',
+                              'Taaza Super Rider • 4.9 ★ (1.2k drops)',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,

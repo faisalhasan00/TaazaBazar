@@ -63,7 +63,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   void _handleVerify() {
     // Mock validation: allow any 6-digit code or demo submission
     final code = _enteredOtp.isEmpty ? '123456' : _enteredOtp;
-    debugPrint('Mock verifying Freshly OTP: $code');
+    debugPrint('Mock verifying TaazaBazar OTP: $code');
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(

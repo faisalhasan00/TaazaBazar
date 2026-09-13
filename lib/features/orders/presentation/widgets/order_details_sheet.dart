@@ -431,7 +431,7 @@ class OrderDetailsSheet extends StatelessWidget {
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Connecting to Freshly Care Support...'),
+                            content: Text('Connecting to TaazaBazar Care Support...'),
                             backgroundColor: Color(0xFF166534),
                             behavior: SnackBarBehavior.floating,
                           ),

@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../splash/presentation/widgets/freshly_logo.dart';
 import 'otp_verification_screen.dart';
+import 'register_screen.dart';
 
 /// Screen: Login via mobile number
 class LoginScreen extends StatefulWidget {
@@ -81,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Heading
                   Center(
                     child: Text(
-                      'Welcome to Freshly',
+                      'Welcome to TaazaBazar',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 28,
@@ -254,7 +255,42 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 48),
+                  // Switch to Register / Sign Up
+                  Center(
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          "Don't have an account? ",
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13.5,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        GestureDetector(
+                          key: const ValueKey('switch_to_register_btn'),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const RegisterScreen(),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            'Sign Up',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
 
                   // Terms & Privacy
                   Center(

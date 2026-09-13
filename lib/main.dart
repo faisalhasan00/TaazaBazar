@@ -17,20 +17,24 @@ void main() {
     ),
   );
 
-  runApp(const FreshlyApp());
+  runApp(const TaazaBazarApp());
 }
 
-class FreshlyApp extends StatelessWidget {
-  const FreshlyApp({super.key});
+class TaazaBazarApp extends StatelessWidget {
+  const TaazaBazarApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Freshly',
+      title: 'TaazaBazar',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const SplashScreen(),
     );
   }
 }
+
+/// Backwards compatibility alias
+typedef FreshlyApp = TaazaBazarApp;
+
 

@@ -1,4 +1,4 @@
-package com.freshly.freshly
+package com.taazabazar.app
 
 import io.flutter.embedding.android.FlutterActivity
 

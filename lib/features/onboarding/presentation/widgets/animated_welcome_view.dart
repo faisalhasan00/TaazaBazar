@@ -331,17 +331,17 @@ class _AnimatedWelcomeViewState extends State<AnimatedWelcomeView>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           // Dual Leaf Emblem
-                          const FreshlyEmblem(size: 104),
+                          const TaazaBazarEmblem(size: 104),
                           const SizedBox(height: 14),
 
-                          // Freshly Brand Wordmark
+                          // TaazaBazar Brand Wordmark
                           Text(
-                            'Freshly',
+                            'TaazaBazar',
                             style: GoogleFonts.plusJakartaSans(
-                              fontSize: 50,
+                              fontSize: 42,
                               fontWeight: FontWeight.w900,
                               color: const Color(0xFF0A5832),
-                              letterSpacing: -1.2,
+                              letterSpacing: -1.0,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -370,31 +370,71 @@ class _AnimatedWelcomeViewState extends State<AnimatedWelcomeView>
                         ],
                       ),
 
-                      const Spacer(flex: 9),
-
-                      // Bottom 2 Pagination Dots
+                      // Bottom Controls: Pagination Indicators + Prominent Next Button with Arrow
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 28.0),
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Active dot (Screen 1)
-                            Container(
-                              width: 8.5,
-                              height: 8.5,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF0A5832),
-                                shape: BoxShape.circle,
-                              ),
+                            // 2 Pagination Dots (Dot 1 Active)
+                            Row(
+                              children: [
+                                Container(
+                                  width: 22,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0A5832),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFC4D5C8),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 7),
-                            // Inactive dot (Screen 2)
-                            Container(
-                              width: 7.5,
-                              height: 7.5,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFC4D5C8),
-                                shape: BoxShape.circle,
+
+                            // Next Action Button with Arrow Symbol
+                            Material(
+                              color: const Color(0xFF0A5832),
+                              borderRadius: BorderRadius.circular(28),
+                              elevation: 2,
+                              shadowColor: const Color(0xFF0A5832).withValues(alpha: 0.35),
+                              child: InkWell(
+                                key: const ValueKey('welcome_next_btn'),
+                                borderRadius: BorderRadius.circular(28),
+                                onTap: widget.onNext,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 22,
+                                    vertical: 11,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Next',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 14.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                          letterSpacing: 0.2,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Icon(
+                                        Icons.arrow_forward_rounded,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                           ],

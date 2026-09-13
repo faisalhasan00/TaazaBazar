@@ -258,7 +258,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           behavior: SnackBarBehavior.floating,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           content: Text(
-                            'Freshly product link copied to clipboard',
+                            'TaazaBazar product link copied to clipboard',
                             style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
                           ),
                         ),
@@ -697,7 +697,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   Text(
                     product.isOrganic
                         ? '100% Certified Organic'
-                        : 'Freshly Farm-Purity Guarantee',
+                        : 'TaazaBazar Farm-Purity Guarantee',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w800,

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Leaf emblem matching the reference design for Freshly.
-class FreshlyEmblem extends StatelessWidget {
+/// Leaf emblem matching the reference design for TaazaBazar.
+class TaazaBazarEmblem extends StatelessWidget {
   final double size;
 
-  const FreshlyEmblem({
+  const TaazaBazarEmblem({
     super.key,
     this.size = 100,
   });
@@ -21,20 +21,26 @@ class FreshlyEmblem extends StatelessWidget {
   }
 }
 
-/// Backward-compatible FreshlyLogo component
-class FreshlyLogo extends StatelessWidget {
+/// Backward-compatible and alias components
+typedef TaazaEmblem = TaazaBazarEmblem;
+typedef FreshlyEmblem = TaazaBazarEmblem;
+
+class TaazaBazarLogo extends StatelessWidget {
   final double size;
 
-  const FreshlyLogo({
+  const TaazaBazarLogo({
     super.key,
     this.size = 96,
   });
 
   @override
   Widget build(BuildContext context) {
-    return FreshlyEmblem(size: size);
+    return TaazaBazarEmblem(size: size);
   }
 }
+
+typedef TaazaLogo = TaazaBazarLogo;
+typedef FreshlyLogo = TaazaBazarLogo;
 
 /// Custom painter for the exact dual-leaf emblem with white vein curves
 class _ReferenceLeafPainter extends CustomPainter {

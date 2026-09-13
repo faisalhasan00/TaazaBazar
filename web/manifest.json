@@ -1,11 +1,11 @@
 {
-    "name": "freshly",
-    "short_name": "freshly",
+    "name": "TaazaBazar",
+    "short_name": "TaazaBazar",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFFFFF",
     "theme_color": "#166534",
-    "description": "A new Flutter project.",
+    "description": "TaazaBazar Fresh Farm Produce & Grocery Delivery.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

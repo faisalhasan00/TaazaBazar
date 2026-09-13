@@ -27,7 +27,7 @@ class OnboardingItem {
   static const List<OnboardingItem> items = [
     OnboardingItem(
       type: OnboardingType.welcome,
-      title: 'Freshly',
+      title: 'TaazaBazar',
       description: 'Pure Food\nBetter Life',
       badgeText: 'Pure & Organic',
       badgeIcon: Icons.eco_rounded,

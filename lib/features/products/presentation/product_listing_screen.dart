@@ -189,25 +189,31 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                 const SizedBox(height: 12),
                 ..._sortOptions.map((opt) {
                   final isSelected = _selectedSort == opt;
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      opt,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 15,
-                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                        color: isSelected ? const Color(0xFF1B6E38) : const Color(0xFF334155),
-                      ),
-                    ),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle_rounded, color: Color(0xFF1B6E38))
-                        : null,
+                  return InkWell(
                     onTap: () {
                       setState(() {
                         _selectedSort = opt;
                       });
                       Navigator.pop(context);
                     },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            opt,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 15,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                              color: isSelected ? const Color(0xFF1B6E38) : const Color(0xFF334155),
+                            ),
+                          ),
+                          if (isSelected)
+                            const Icon(Icons.check_circle_rounded, color: Color(0xFF1B6E38)),
+                        ],
+                      ),
+                    ),
                   );
                 }),
               ],

@@ -152,7 +152,7 @@ class OrderSuccessScreen extends StatelessWidget {
           const SizedBox(height: 6),
 
           Text(
-            'Thank you for shopping farm fresh with Freshly.',
+            'Thank you for shopping farm fresh with TaazaBazar.',
             textAlign: TextAlign.center,
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13.5,

@@ -32,7 +32,7 @@ class DeliverySlot {
 }
 
 /// Placed Order Model
-class FreshlyOrder {
+class TaazaOrder {
   final String orderId;
   final List<CartItem> items;
   final String deliveryAddress;
@@ -44,7 +44,7 @@ class FreshlyOrder {
   final double grandTotal;
   final DateTime orderTime;
 
-  const FreshlyOrder({
+  const TaazaOrder({
     required this.orderId,
     required this.items,
     required this.deliveryAddress,
@@ -59,3 +59,7 @@ class FreshlyOrder {
 
   int get totalItemCount => items.fold(0, (sum, i) => sum + i.quantity);
 }
+
+/// Backwards compatibility alias
+typedef FreshlyOrder = TaazaOrder;
+

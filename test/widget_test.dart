@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:freshly/features/auth/presentation/login_screen.dart';
-import 'package:freshly/features/cart/domain/cart_item.dart';
-import 'package:freshly/features/cart/presentation/cart_screen.dart';
-import 'package:freshly/features/checkout/presentation/checkout_screen.dart';
-import 'package:freshly/features/home/presentation/home_screen.dart';
-import 'package:freshly/features/location/presentation/address_confirmation_screen.dart';
-import 'package:freshly/features/location/presentation/location_setup_screen.dart';
-import 'package:freshly/features/location/presentation/manual_address_screen.dart';
-import 'package:freshly/features/onboarding/presentation/onboarding_screen.dart';
-import 'package:freshly/features/orders/presentation/order_tracking_screen.dart';
-import 'package:freshly/features/orders/presentation/orders_screen.dart';
-import 'package:freshly/features/products/data/mock_products_data.dart';
-import 'package:freshly/features/splash/presentation/widgets/freshly_logo.dart';
-import 'package:freshly/main.dart';
+import 'package:taazabazar/features/auth/presentation/login_screen.dart';
+import 'package:taazabazar/features/auth/presentation/otp_verification_screen.dart';
+import 'package:taazabazar/features/auth/presentation/register_screen.dart';
+import 'package:taazabazar/features/cart/domain/cart_item.dart';
+import 'package:taazabazar/features/cart/presentation/cart_screen.dart';
+import 'package:taazabazar/features/checkout/presentation/checkout_screen.dart';
+import 'package:taazabazar/features/home/presentation/home_screen.dart';
+import 'package:taazabazar/features/location/presentation/address_confirmation_screen.dart';
+import 'package:taazabazar/features/location/presentation/location_setup_screen.dart';
+import 'package:taazabazar/features/location/presentation/manual_address_screen.dart';
+import 'package:taazabazar/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:taazabazar/features/orders/presentation/order_tracking_screen.dart';
+import 'package:taazabazar/features/orders/presentation/orders_screen.dart';
+import 'package:taazabazar/features/pass/presentation/freshly_pass_screen.dart';
+import 'package:taazabazar/features/products/data/mock_products_data.dart';
+import 'package:taazabazar/features/profile/presentation/profile_screen.dart';
+import 'package:taazabazar/features/splash/presentation/widgets/freshly_logo.dart';
+import 'package:taazabazar/main.dart';
 
 void main() {
   testWidgets('Freshly splash screen displays branding, logo and tagline',
@@ -23,7 +27,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1000));
 
     expect(find.byType(FreshlyEmblem), findsOneWidget);
-    expect(find.text('Freshly'), findsOneWidget);
+    expect(find.text('TaazaBazar'), findsOneWidget);
     expect(find.text('Pure Food'), findsOneWidget);
     expect(find.text('Better Life'), findsOneWidget);
   });
@@ -39,13 +43,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 800));
 
     expect(find.byType(FreshlyEmblem), findsOneWidget);
-    expect(find.text('Freshly'), findsOneWidget);
+    expect(find.text('TaazaBazar'), findsOneWidget);
     expect(find.text('Pure Food'), findsOneWidget);
     expect(find.text('Better Life'), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);
+    expect(find.byKey(const ValueKey('welcome_next_btn')), findsOneWidget);
+    expect(find.text('Next'), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_forward_rounded), findsWidgets);
 
-    // Tap on Screen 1 to page to Screen 2
-    await tester.tap(find.text('Freshly'));
+    // Tap Next button on Screen 1 to page to Screen 2
+    await tester.tap(find.byKey(const ValueKey('welcome_next_btn')));
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 500));
 
@@ -59,6 +66,56 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.byKey(const ValueKey('switch_to_register_btn')), findsOneWidget);
+  });
+
+  testWidgets('Freshly Register Screen allows input, validation and switch to login',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: RegisterScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify Register Screen layout
+    expect(find.text('Create an Account'), findsOneWidget);
+    expect(find.byKey(const ValueKey('register_name_field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('register_phone_field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('register_email_field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('register_referral_field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('register_btn')), findsOneWidget);
+    expect(find.byKey(const ValueKey('switch_to_login_btn')), findsOneWidget);
+
+    // Test form validation: empty fields tap
+    await tester.ensureVisible(find.byKey(const ValueKey('register_btn')));
+    await tester.tap(find.byKey(const ValueKey('register_btn')));
+    await tester.pumpAndSettle();
+    expect(find.text('Please enter your full name'), findsOneWidget);
+
+    // Enter full name and valid 10-digit phone
+    await tester.enterText(
+        find.byKey(const ValueKey('register_name_field')), 'Faisal Ahmed');
+    await tester.enterText(
+        find.byKey(const ValueKey('register_phone_field')), '9876543210');
+    await tester.enterText(
+        find.byKey(const ValueKey('register_email_field')), 'faisal@freshly.com');
+    await tester.pumpAndSettle();
+
+    // Tap Register -> Navigate to OTP screen
+    await tester.ensureVisible(find.byKey(const ValueKey('register_btn')));
+    await tester.tap(find.byKey(const ValueKey('register_btn')));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.byType(OtpVerificationScreen), findsOneWidget);
+    expect(find.text('Verify your number'), findsOneWidget);
+    expect(find.text('Verify & Continue'), findsOneWidget);
   });
 
   testWidgets('Freshly Location -> Address Confirmation -> Home flow',
@@ -145,8 +202,8 @@ void main() {
     expect(find.text('₹60/L'), findsOneWidget);
     expect(find.text('Spinach'), findsOneWidget);
 
-    // 5. Freshly Pass mini banner
-    expect(find.text('Save More with Freshly Pass'), findsOneWidget);
+    // 5. Taaza Pass mini banner
+    expect(find.text('Save More with Taaza Pass'), findsOneWidget);
     expect(find.text('View Plans'), findsOneWidget);
 
     // 6. Bottom Navigation
@@ -156,16 +213,16 @@ void main() {
     expect(find.text('Pass'), findsOneWidget);
     expect(find.text('Profile'), findsOneWidget);
 
-    // 7. Tap Pass tab to verify Freshly Pass Screen
+    // 7. Tap Pass tab to verify Taaza Pass Screen
     await tester.tap(find.text('Pass'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Freshly Pass'), findsOneWidget);
+    expect(find.text('Taaza Pass'), findsOneWidget);
     expect(find.text('Select Membership Plan'), findsOneWidget);
     expect(find.text('Weekly Pass'), findsOneWidget);
     expect(find.text('Monthly Pass'), findsOneWidget);
     expect(find.text('Quarterly Pass'), findsOneWidget);
-    expect(find.text('Activate Freshly Pass'), findsOneWidget);
+    expect(find.text('Activate Taaza Pass'), findsOneWidget);
   });
 
   testWidgets('Freshly Manual Address Form -> Save -> Confirm flow',
@@ -337,7 +394,7 @@ void main() {
     expect(find.text('2'), findsWidgets);
 
     // 4. Quality Guarantee Banner & Delivery Info
-    expect(find.text('Freshly Farm-Purity Guarantee'), findsOneWidget);
+    expect(find.text('TaazaBazar Farm-Purity Guarantee'), findsOneWidget);
     expect(find.text('Morning Harvest Delivery'), findsOneWidget);
 
     // 5. Product Description & Key Benefits
@@ -597,7 +654,7 @@ void main() {
     await tester.tap(find.text('Need Help?'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('Chat with Freshly Support'), findsOneWidget);
+    expect(find.text('Chat with TaazaBazar Support'), findsOneWidget);
     expect(find.text('Change Delivery Instructions'), findsOneWidget);
 
     // Close help modal
@@ -668,7 +725,7 @@ void main() {
     // Verify Delivery Partner Card
     expect(find.text('Delivery Partner'), findsOneWidget);
     expect(find.text('Ramesh Kumar'), findsOneWidget);
-    expect(find.text('Freshly Super Rider • 4.9 ★ (1,240 drops)'), findsOneWidget);
+    expect(find.text('Taaza Super Rider • 4.9 ★ (1,240 drops)'), findsOneWidget);
     expect(find.text('Delivery Safety PIN: 4821'), findsOneWidget);
 
     // Verify Delivery Address & Ordered Items
@@ -677,6 +734,55 @@ void main() {
     expect(find.text('Total Amount Paid'), findsOneWidget);
     expect(find.text('₹240'), findsOneWidget);
   });
+
+  testWidgets('Freshly Pass Screen renders plans, benefits, and activation button',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: FreshlyPassScreen(isStandalone: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Taaza Pass'), findsOneWidget);
+    expect(find.text('MEMBER PASS'), findsOneWidget);
+    expect(find.text('Pass Benefits'), findsOneWidget);
+    expect(find.text('Unlimited Free Deliveries'), findsOneWidget);
+    expect(find.text('Select Membership Plan'), findsOneWidget);
+    expect(find.text('Weekly Pass'), findsOneWidget);
+    expect(find.text('Monthly Pass'), findsOneWidget);
+    expect(find.text('Quarterly Pass'), findsOneWidget);
+    expect(find.text('Activate Taaza Pass'), findsOneWidget);
+
+    // Tap Weekly Pass
+    await tester.tap(find.text('Weekly Pass'));
+    await tester.pumpAndSettle();
+
+    // Tap Activate
+    await tester.tap(find.text('Activate Taaza Pass'));
+    await tester.pumpAndSettle();
+    expect(find.text('🎉 Taaza Pass activated successfully!'), findsOneWidget);
+  });
+
+  testWidgets('Freshly Profile Screen renders user header, menu options, and actions',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ProfileScreen(isStandalone: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('My Profile'), findsOneWidget);
+    expect(find.text('Faisal Ahmed'), findsOneWidget);
+    expect(find.text('PASS VIP'), findsOneWidget);
+    expect(find.text('My Orders'), findsOneWidget);
+    expect(find.text('Taaza Pass'), findsOneWidget);
+    expect(find.text('Saved Addresses'), findsOneWidget);
+    expect(find.text('Customer Support'), findsOneWidget);
+    expect(find.text('Log Out'), findsOneWidget);
+  });
 }
+
 
 
