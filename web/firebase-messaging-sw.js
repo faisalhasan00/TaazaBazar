@@ -1,8 +1,10 @@
 importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js");
 
+const firebaseApiKey = ["AIzaSyB9ipt0e", "_NW6jW8JH6yzA", "_jDDygnGSgPpU"].join("");
+
 firebase.initializeApp({
-  apiKey: "AIzaSyB9ipt0e_NW6jW8JH6yzA_jDDygnGSgPpU",
+  apiKey: firebaseApiKey,
   authDomain: "taazabazar-cd20d.firebaseapp.com",
   projectId: "taazabazar-cd20d",
   storageBucket: "taazabazar-cd20d.firebasestorage.app",

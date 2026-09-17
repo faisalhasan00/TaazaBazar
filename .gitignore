@@ -50,4 +50,9 @@ node_modules/
 **/node_modules/
 privacy_policy_web/dist/
 privacy_policy_web/node_modules/
+admin_dashboard/dist/
+.vite/
+**/.vite/
+.env
+*.env
 
