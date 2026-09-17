@@ -1,35 +1,101 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../domain/models/delivery_address.dart';
 import 'address_confirmation_screen.dart';
 import 'manual_address_screen.dart';
 
-/// Screen 1: Location Setup Screen
-class LocationSetupScreen extends StatelessWidget {
+/// Screen 1: Location Setup Screen with GPS coordinate detection
+class LocationSetupScreen extends StatefulWidget {
   const LocationSetupScreen({super.key});
 
-  void _useCurrentLocation(BuildContext context) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const AddressConfirmationScreen(
-          address: DeliveryAddress.mockDefault,
+  @override
+  State<LocationSetupScreen> createState() => _LocationSetupScreenState();
+}
+
+class _LocationSetupScreenState extends State<LocationSetupScreen> {
+  bool _isLocating = false;
+
+  Future<void> _useCurrentLocation() async {
+    if (_isLocating) return;
+
+    setState(() {
+      _isLocating = true;
+    });
+
+    final result = await LocationService().getCurrentCoordinates();
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLocating = false;
+    });
+
+    if (result.isSuccess && result.latitude != null && result.longitude != null) {
+      final detectedAddress = DeliveryAddress(
+        flatNo: (result.flatNo != null && result.flatNo!.isNotEmpty)
+            ? result.flatNo!
+            : 'Current Location',
+        street: (result.street != null && result.street!.isNotEmpty)
+            ? result.street!
+            : 'Street near (${result.latitude!.toStringAsFixed(3)}, ${result.longitude!.toStringAsFixed(3)})',
+        area: (result.area != null && result.area!.isNotEmpty)
+            ? result.area!
+            : 'Local Area',
+        city: (result.city != null && result.city!.isNotEmpty)
+            ? result.city!
+            : 'Hyderabad',
+        state: (result.state != null && result.state!.isNotEmpty)
+            ? result.state!
+            : 'Telangana',
+        pincode: (result.pincode != null && result.pincode!.isNotEmpty)
+            ? result.pincode!
+            : '500001',
+        latitude: result.latitude,
+        longitude: result.longitude,
+        isDefault: true,
+      );
+
+      Navigator.of(context).push(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              AddressConfirmationScreen(
+            address: detectedAddress,
+          ),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOutCubic;
+            final tween =
+                Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
         ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOutCubic;
-          final tween =
-              Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
-      ),
-    );
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.errorMessage ?? 'Could not detect location. Please enter address manually.',
+          ),
+          backgroundColor: const Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          action: SnackBarAction(
+            label: 'MANUAL',
+            textColor: Colors.white,
+            onPressed: () => _enterAddressManually(context),
+          ),
+        ),
+      );
+    }
   }
 
   void _enterAddressManually(BuildContext context) {
@@ -214,7 +280,7 @@ class LocationSetupScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: () => _useCurrentLocation(context),
+                      onPressed: _isLocating ? null : _useCurrentLocation,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -226,22 +292,46 @@ class LocationSetupScreen extends StatelessWidget {
                       ),
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.my_location_rounded, size: 20),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Use Current Location',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.2,
+                        child: _isLocating
+                            ? const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'Detecting GPS Location...',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.my_location_rounded, size: 20),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Use Current Location',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ),

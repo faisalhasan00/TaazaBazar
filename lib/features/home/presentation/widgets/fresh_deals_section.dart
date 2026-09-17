@@ -18,6 +18,10 @@ class FreshDealsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (deals.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

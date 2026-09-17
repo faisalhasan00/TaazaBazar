@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../data/mock_orders_data.dart';
+import '../../cart/data/cart_repository.dart';
+import '../data/order_repository.dart';
 import '../domain/customer_order.dart';
 import 'widgets/active_order_card.dart';
 import 'widgets/previous_order_card.dart';
@@ -10,12 +12,16 @@ class OrdersScreen extends StatefulWidget {
   final bool isStandalone;
   final VoidCallback? onStartShopping;
   final Function(List<CustomerOrder>)? onReorderItems;
+  final List<CustomerOrder>? initialActiveOrders;
+  final List<CustomerOrder>? initialPreviousOrders;
 
   const OrdersScreen({
     super.key,
     this.isStandalone = false,
     this.onStartShopping,
     this.onReorderItems,
+    this.initialActiveOrders,
+    this.initialPreviousOrders,
   });
 
   @override
@@ -27,22 +33,54 @@ class _OrdersScreenState extends State<OrdersScreen>
   late final TabController _tabController;
   late List<CustomerOrder> _activeOrders;
   late List<CustomerOrder> _previousOrders;
+  StreamSubscription<List<CustomerOrder>>? _activeOrdersSub;
+  StreamSubscription<List<CustomerOrder>>? _previousOrdersSub;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _activeOrders = MockOrdersData.getActiveOrders();
-    _previousOrders = MockOrdersData.getPreviousOrders();
+    _activeOrders = widget.initialActiveOrders ?? [];
+    _previousOrders = widget.initialPreviousOrders ?? [];
+
+    if (widget.initialActiveOrders == null &&
+        widget.initialPreviousOrders == null) {
+      _subscribeToOrderStreams();
+    }
+  }
+
+  void _subscribeToOrderStreams() {
+    _activeOrdersSub =
+        OrderRepository().getActiveOrdersStream().listen((orders) {
+      if (mounted) {
+        setState(() {
+          _activeOrders = orders;
+        });
+      }
+    });
+
+    _previousOrdersSub =
+        OrderRepository().getPreviousOrdersStream().listen((orders) {
+      if (mounted) {
+        setState(() {
+          _previousOrders = orders;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _activeOrdersSub?.cancel();
+    _previousOrdersSub?.cancel();
     _tabController.dispose();
     super.dispose();
   }
 
   void _handleReorder(CustomerOrder order) {
+    for (final item in order.items) {
+      CartRepository().addItem(item.product, quantity: item.quantity);
+    }
     ScaffoldMessenger.of(context).removeCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

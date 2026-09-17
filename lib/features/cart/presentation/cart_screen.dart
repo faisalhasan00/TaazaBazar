@@ -1,7 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../checkout/presentation/checkout_screen.dart';
-import '../../products/data/mock_products_data.dart';
+import '../../coupons/data/coupon_repository.dart';
+import '../../location/data/address_repository.dart';
+import '../../location/domain/models/delivery_address.dart';
+import '../../location/presentation/saved_addresses_screen.dart';
+import '../data/cart_repository.dart';
 import '../domain/cart_item.dart';
 import 'widgets/cart_bill_details.dart';
 import 'widgets/cart_item_tile.dart';
@@ -25,7 +31,9 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  final _cartRepo = CartRepository();
   late List<CartItem> _items;
+  StreamSubscription<List<CartItem>>? _cartSubscription;
   final TextEditingController _couponController = TextEditingController();
   String? _appliedCoupon;
   double _couponDiscount = 0.0;
@@ -35,51 +43,32 @@ class _CartScreenState extends State<CartScreen> {
   @override
   void initState() {
     super.initState();
+    final defaultAddr = AddressRepository().getDefaultAddress();
     _currentAddress = widget.deliveryAddress ??
-        'Flat 402, Green Valley Apartments, Indiranagar, Bengaluru, 560038';
+        defaultAddr?.formattedAddress ??
+        'Select delivery address';
 
     if (widget.initialItems != null) {
       _items = List.from(widget.initialItems!);
+      _cartRepo.setInitialCache(_items);
     } else {
-      _items = [
-        CartItem(
-          product: MockProductsData.allProducts.firstWhere(
-            (p) => p.name.contains('Tomato'),
-            orElse: () => MockProductsData.allProducts[0],
-          ),
-          quantity: 2,
-          selectedPack: '1 kg',
-        ),
-        CartItem(
-          product: MockProductsData.allProducts.firstWhere(
-            (p) => p.name.contains('Milk'),
-            orElse: () => MockProductsData.allProducts[1],
-          ),
-          quantity: 1,
-          selectedPack: '1 L',
-        ),
-        CartItem(
-          product: MockProductsData.allProducts.firstWhere(
-            (p) => p.name.contains('Egg'),
-            orElse: () => MockProductsData.allProducts[2],
-          ),
-          quantity: 1,
-          selectedPack: '6 pcs',
-        ),
-        CartItem(
-          product: MockProductsData.allProducts.firstWhere(
-            (p) => p.name.contains('Spinach') || p.name.contains('Palak'),
-            orElse: () => MockProductsData.allProducts[3],
-          ),
-          quantity: 1,
-          selectedPack: '250 g',
-        ),
-      ];
+      _items = List.from(_cartRepo.cachedCartItems);
+    }
+
+    if (widget.initialItems == null) {
+      _cartSubscription = _cartRepo.getCartStream().listen((list) {
+        if (mounted) {
+          setState(() {
+            _items = List.from(list);
+          });
+        }
+      });
     }
   }
 
   @override
   void dispose() {
+    _cartSubscription?.cancel();
     _couponController.dispose();
     super.dispose();
   }
@@ -89,7 +78,9 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   double get _deliveryFee {
-    return _itemTotal >= 199 || _items.isEmpty ? 0.0 : 25.0;
+    return _itemTotal >= AppConstants.freeDeliveryThreshold || _items.isEmpty
+        ? 0.0
+        : AppConstants.standardDeliveryFee;
   }
 
   double get _grandTotal {
@@ -98,19 +89,23 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   void _incrementItem(int index) {
+    final item = _items[index];
     setState(() {
-      _items[index].quantity++;
+      item.quantity++;
     });
+    _cartRepo.updateQuantity(item.product.id, item.quantity);
   }
 
   void _decrementItem(int index) {
-    setState(() {
-      if (_items[index].quantity > 1) {
-        _items[index].quantity--;
-      } else {
-        _removeItem(index);
-      }
-    });
+    final item = _items[index];
+    if (item.quantity > 1) {
+      setState(() {
+        item.quantity--;
+      });
+      _cartRepo.updateQuantity(item.product.id, item.quantity);
+    } else {
+      _removeItem(index);
+    }
   }
 
   void _removeItem(int index) {
@@ -118,6 +113,7 @@ class _CartScreenState extends State<CartScreen> {
     setState(() {
       _items.removeAt(index);
     });
+    _cartRepo.removeItem(removed.product.id);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Removed ${removed.product.name} from cart'),
@@ -133,28 +129,42 @@ class _CartScreenState extends State<CartScreen> {
       _appliedCoupon = null;
       _couponDiscount = 0.0;
     });
+    _cartRepo.clearCart();
   }
 
-  void _applyCoupon() {
+  Future<void> _applyCoupon() async {
     final code = _couponController.text.trim().toUpperCase();
     if (code.isEmpty) return;
 
-    if (code == 'TAAZA50' || code == 'FRESH50') {
+    final coupon = await CouponRepository().getCouponByCode(code);
+    if (coupon != null && coupon.isValidFor(_itemTotal)) {
+      final discount = coupon.calculateDiscount(_itemTotal);
       setState(() {
-        _appliedCoupon = code;
-        _couponDiscount = 50.0;
+        _appliedCoupon = coupon.code;
+        _couponDiscount = discount;
       });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('🎉 Coupon $code applied: ₹50 discount!'),
+          content: Text('🎉 Coupon ${coupon.code} applied: ₹${discount.toInt()} discount!'),
           backgroundColor: const Color(0xFF166534),
           behavior: SnackBarBehavior.floating,
         ),
       );
+    } else if (coupon != null && !coupon.isValidFor(_itemTotal)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Minimum order value of ₹${coupon.minOrder.toInt()} required for ${coupon.code}'),
+          backgroundColor: const Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Invalid coupon code. Try TAAZA50'),
+          content: Text('Invalid coupon code. Try FRESH50 or TAAZA100'),
           backgroundColor: Color(0xFFDC2626),
           behavior: SnackBarBehavior.floating,
         ),
@@ -168,6 +178,26 @@ class _CartScreenState extends State<CartScreen> {
       _couponDiscount = 0.0;
       _couponController.clear();
     });
+  }
+
+  Future<void> _handleChangeAddress() async {
+    final selected = await Navigator.push<DeliveryAddress>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SavedAddressesScreen(
+          isStandalone: true,
+          onAddressSelected: (addr) {
+            Navigator.pop(context, addr);
+          },
+        ),
+      ),
+    );
+
+    if (selected != null && mounted) {
+      setState(() {
+        _currentAddress = selected.formattedAddress;
+      });
+    }
   }
 
   void _proceedToCheckout() {
@@ -238,15 +268,7 @@ class _CartScreenState extends State<CartScreen> {
                   DeliveryAddressCard(
                     address: _currentAddress,
                     slot: _selectedDeliverySlot,
-                    onChangeAddress: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Address change requested'),
-                          backgroundColor: Color(0xFF166534),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
+                    onChangeAddress: _handleChangeAddress,
                   ),
                   const SizedBox(height: 16),
 

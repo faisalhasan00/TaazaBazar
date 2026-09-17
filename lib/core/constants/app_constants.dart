@@ -5,7 +5,7 @@ class AppConstants {
   static const String appName = 'TaazaBazar';
   static const String appTagline = 'Pure Food. Better Life.';
   static const String currencySymbol = '₹';
-  static const String supportPhone = '+91 98765 12340';
+  static const String supportPhone = 'In-app helpline coming soon';
   static const String supportEmail = 'care@taazabazar.in';
   
   // Default delivery values

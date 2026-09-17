@@ -1,12 +1,18 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../cart/data/cart_repository.dart';
 import '../../cart/presentation/cart_screen.dart';
 import '../../categories/presentation/categories_screen.dart';
+import '../../deals/data/deal_repository.dart';
+import '../../deals/domain/deal_model.dart';
 import '../../orders/presentation/orders_screen.dart';
-import '../../pass/presentation/freshly_pass_screen.dart';
-import '../../products/data/mock_products_data.dart';
+import '../../subscription/presentation/subscriptions_hub_screen.dart';
+import '../../products/data/product_repository.dart';
+import '../../products/domain/product_model.dart';
 import '../../products/presentation/product_details_screen.dart';
 import '../../products/presentation/product_listing_screen.dart';
+import '../../products/presentation/product_search_screen.dart';
 import '../../profile/presentation/profile_screen.dart';
 import 'widgets/fresh_deals_section.dart';
 import 'widgets/home_bottom_nav.dart';
@@ -31,108 +37,71 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final _productRepo = ProductRepository();
   int _currentNavIndex = 0;
   final Map<String, int> _cartQuantities = {};
 
-  final List<Map<String, dynamic>> _categories = [
-    {
-      'id': 'veg',
-      'title': 'Vegetables',
-      'emoji': '🥬',
-      'bg': const Color(0xFFEDF7EF),
-    },
-    {
-      'id': 'fruits',
-      'title': 'Fruits',
-      'emoji': '🍎',
-      'bg': const Color(0xFFEDF7EF),
-    },
-    {
-      'id': 'dairy',
-      'title': 'Dairy',
-      'emoji': '🥛',
-      'bg': const Color(0xFFEDF7EF),
-    },
-    {
-      'id': 'organic',
-      'title': 'Organic',
-      'emoji': '🌿',
-      'bg': const Color(0xFFEDF7EF),
-    },
-    {
-      'id': 'milk',
-      'title': 'Milk',
-      'emoji': '🍶',
-      'bg': const Color(0xFFEDF7EF),
-    },
-    {
-      'id': 'eggs',
-      'title': 'Eggs',
-      'emoji': '🥚',
-      'bg': const Color(0xFFEDF7EF),
-    },
-    {
-      'id': 'grocery',
-      'title': 'Grocery',
-      'emoji': '🛒',
-      'bg': const Color(0xFFEDF7EF),
-    },
-    {
-      'id': 'more',
-      'title': 'More',
-      'emoji': '•••',
-      'bg': const Color(0xFFEDF7EF),
-      'isMore': true,
-    },
-  ];
+  List<FreshCategory> _categories = [];
+  List<Map<String, dynamic>> _freshDeals = [];
+  StreamSubscription<List<FreshCategory>>? _categoriesSub;
+  StreamSubscription<List<DealModel>>? _dealsSub;
 
-  final List<Map<String, dynamic>> _freshDeals = [
-    {
-      'id': 'v_tomato',
-      'title': 'Tomato',
-      'price': '₹25/kg',
-      'originalPrice': '₹35',
-      'emoji': '🍅',
-      'bgColor': const Color(0xFFFFF1F2),
-    },
-    {
-      'id': 'd_cow_milk',
-      'title': 'Milk',
-      'price': '₹60/L',
-      'originalPrice': '₹68',
-      'emoji': '🥛',
-      'bgColor': const Color(0xFFF0F9FF),
-    },
-    {
-      'id': 'v_spinach',
-      'title': 'Spinach',
-      'price': '₹20/bunch',
-      'originalPrice': '₹28',
-      'emoji': '🥬',
-      'bgColor': const Color(0xFFF0FDF4),
-    },
-    {
-      'id': 'v_carrot',
-      'title': 'Carrot',
-      'price': '₹38/kg',
-      'originalPrice': '₹48',
-      'emoji': '🥕',
-      'bgColor': const Color(0xFFFFF7ED),
-    },
-    {
-      'id': 'e_brown_eggs',
-      'title': 'Eggs',
-      'price': '₹65/6pcs',
-      'originalPrice': '₹75',
-      'emoji': '🥚',
-      'bgColor': const Color(0xFFFFFBEB),
-    },
-  ];
+  List<Map<String, dynamic>> get _displayCategories {
+    if (_categories.isEmpty) return [];
+    final List<Map<String, dynamic>> list = _categories.map((c) => <String, dynamic>{
+      'id': c.id,
+      'title': c.name,
+      'emoji': c.emoji,
+      'bg': c.bgColor,
+    }).toList();
+    if (list.length >= 7) {
+      list.add(<String, dynamic>{
+        'id': 'more',
+        'title': 'More',
+        'emoji': '•••',
+        'bg': const Color(0xFFEDF7EF),
+        'isMore': true,
+      });
+    }
+    return list;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _categories = List.from(_productRepo.cachedCategories);
+    _categoriesSub = _productRepo.getCategoriesStream().listen((list) {
+      if (mounted) {
+        setState(() {
+          _categories = list;
+        });
+      }
+    });
+
+    _dealsSub = DealRepository().getDealsStream().listen((deals) {
+      if (mounted) {
+        setState(() {
+          _freshDeals = deals.map((d) => d.toHomeScreenMap()).toList();
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _categoriesSub?.cancel();
+    _dealsSub?.cancel();
+    super.dispose();
+  }
 
   void _incrementProduct(String id) {
     setState(() {
       _cartQuantities[id] = (_cartQuantities[id] ?? 0) + 1;
     });
+    final product = _productRepo.getProductById(id);
+    if (product != null) {
+      CartRepository().addItem(product);
+    }
   }
 
   void _navigateToCategory(String categoryId, String title) {
@@ -140,10 +109,13 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() => _currentNavIndex = 1);
       return;
     }
-    final category = MockProductsData.categories.firstWhere(
-      (c) => c.id == categoryId || c.name.toLowerCase().contains(title.toLowerCase()),
-      orElse: () => MockProductsData.categories[0],
-    );
+    final category = _productRepo.getCategoryById(categoryId) ??
+        _productRepo.cachedCategories.firstWhere(
+          (c) => c.id == categoryId || c.name.toLowerCase().contains(title.toLowerCase()),
+          orElse: () => _productRepo.cachedCategories.isNotEmpty
+              ? _productRepo.cachedCategories[0]
+              : _productRepo.cachedCategories.first,
+        );
 
     Navigator.push(
       context,
@@ -156,10 +128,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openProductDetails(String productId) {
-    final product = MockProductsData.allProducts.firstWhere(
-      (p) => p.id == productId,
-      orElse: () => MockProductsData.allProducts[0],
-    );
+    final product = _productRepo.getProductById(productId) ??
+        (_productRepo.cachedProducts.isNotEmpty
+            ? _productRepo.cachedProducts[0]
+            : _productRepo.cachedProducts.first);
 
     Navigator.push(
       context,
@@ -232,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onStartShopping: () => setState(() => _currentNavIndex = 0),
         );
       case 3:
-        return const FreshlyPassScreen();
+        return const SubscriptionsHubScreen();
       case 4:
         return ProfileScreen(
           onNavigateToOrders: () => setState(() => _currentNavIndex = 2),
@@ -261,7 +233,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             },
-            onSearchTap: () => setState(() => _currentNavIndex = 1),
+            onSearchTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProductSearchScreen(),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 12),
 
@@ -272,23 +251,25 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 20),
 
           // 3. Category Selector Grid
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'Explore Categories',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF0F172A),
+          if (_displayCategories.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Explore Categories',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF0F172A),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          HomeCategoryGrid(
-            categories: _categories,
-            onCategoryTap: _navigateToCategory,
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 12),
+            HomeCategoryGrid(
+              categories: _displayCategories,
+              onCategoryTap: _navigateToCategory,
+            ),
+            const SizedBox(height: 20),
+          ],
 
           // 4. Fresh Deals Section
           FreshDealsSection(

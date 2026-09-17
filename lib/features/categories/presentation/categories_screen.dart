@@ -1,6 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../products/data/mock_products_data.dart';
+import '../../products/data/product_repository.dart';
 import '../../products/domain/product_model.dart';
 import '../../products/presentation/product_listing_screen.dart';
 
@@ -21,11 +22,28 @@ class CategoriesScreen extends StatefulWidget {
 }
 
 class _CategoriesScreenState extends State<CategoriesScreen> {
+  final _productRepo = ProductRepository();
+  late List<FreshCategory> _categories;
+  StreamSubscription<List<FreshCategory>>? _categorySubscription;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _categories = List.from(_productRepo.cachedCategories);
+    _categorySubscription = _productRepo.getCategoriesStream().listen((list) {
+      if (mounted && list.isNotEmpty) {
+        setState(() {
+          _categories = list;
+        });
+      }
+    });
+  }
+
+  @override
   void dispose() {
+    _categorySubscription?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -50,10 +68,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   List<FreshCategory> get _filteredCategories {
     if (_searchQuery.trim().isEmpty) {
-      return MockProductsData.categories;
+      return _categories;
     }
     final q = _searchQuery.toLowerCase().trim();
-    return MockProductsData.categories.where((c) {
+    return _categories.where((c) {
       return c.name.toLowerCase().contains(q) ||
           c.subtitle.toLowerCase().contains(q);
     }).toList();

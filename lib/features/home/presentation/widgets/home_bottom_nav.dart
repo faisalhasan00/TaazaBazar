@@ -64,9 +64,9 @@ class HomeBottomNav extends StatelessWidget {
             label: 'Orders',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.card_membership_outlined),
-            activeIcon: Icon(Icons.card_membership_rounded),
-            label: 'Pass',
+            icon: Icon(Icons.calendar_month_outlined),
+            activeIcon: Icon(Icons.calendar_month_rounded),
+            label: 'Subscribe',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline_rounded),

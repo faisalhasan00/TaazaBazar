@@ -16,20 +16,15 @@ class ManualAddressScreen extends StatefulWidget {
 class _ManualAddressScreenState extends State<ManualAddressScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _flatController =
-      TextEditingController(text: 'Flat 402, Oakwood');
-  final TextEditingController _streetController =
-      TextEditingController(text: 'Plot No. 18, Road No. 2');
-  final TextEditingController _areaController =
-      TextEditingController(text: 'Hitec City');
+  final TextEditingController _flatController = TextEditingController();
+  final TextEditingController _streetController = TextEditingController();
+  final TextEditingController _areaController = TextEditingController();
   final TextEditingController _cityController =
       TextEditingController(text: 'Hyderabad');
   final TextEditingController _stateController =
       TextEditingController(text: 'Telangana');
-  final TextEditingController _pinController =
-      TextEditingController(text: '500081');
-  final TextEditingController _noteController = TextEditingController(
-      text: 'Leave the order at the security desk.');
+  final TextEditingController _pinController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
 
   @override
   void dispose() {

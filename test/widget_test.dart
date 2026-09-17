@@ -1,25 +1,96 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:taazabazar/core/services/location_service.dart';
 import 'package:taazabazar/features/auth/presentation/login_screen.dart';
 import 'package:taazabazar/features/auth/presentation/otp_verification_screen.dart';
 import 'package:taazabazar/features/auth/presentation/register_screen.dart';
+import 'package:taazabazar/features/cart/data/cart_repository.dart';
 import 'package:taazabazar/features/cart/domain/cart_item.dart';
 import 'package:taazabazar/features/cart/presentation/cart_screen.dart';
 import 'package:taazabazar/features/checkout/presentation/checkout_screen.dart';
 import 'package:taazabazar/features/home/presentation/home_screen.dart';
+import 'package:taazabazar/features/location/data/address_repository.dart';
+import 'package:taazabazar/features/location/domain/models/delivery_address.dart';
+import 'package:taazabazar/features/location/presentation/add_edit_address_screen.dart';
 import 'package:taazabazar/features/location/presentation/address_confirmation_screen.dart';
 import 'package:taazabazar/features/location/presentation/location_setup_screen.dart';
 import 'package:taazabazar/features/location/presentation/manual_address_screen.dart';
+import 'package:taazabazar/features/location/presentation/saved_addresses_screen.dart';
 import 'package:taazabazar/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:taazabazar/features/orders/data/order_repository.dart';
+import 'package:taazabazar/features/orders/data/mock_orders_data.dart';
 import 'package:taazabazar/features/orders/presentation/order_tracking_screen.dart';
 import 'package:taazabazar/features/orders/presentation/orders_screen.dart';
+import 'package:taazabazar/features/orders/presentation/widgets/mock_delivery_map.dart';
 import 'package:taazabazar/features/pass/presentation/freshly_pass_screen.dart';
 import 'package:taazabazar/features/products/data/mock_products_data.dart';
+import 'package:taazabazar/features/products/domain/product_model.dart';
+import 'package:taazabazar/features/profile/domain/user_profile.dart';
+import 'package:taazabazar/features/profile/presentation/edit_profile_screen.dart';
 import 'package:taazabazar/features/profile/presentation/profile_screen.dart';
+import 'package:taazabazar/features/profile/presentation/widgets/profile_header.dart';
+import 'package:taazabazar/features/coupons/data/coupon_repository.dart';
+import 'package:taazabazar/features/coupons/domain/coupon_model.dart';
+import 'package:taazabazar/features/deals/data/deal_repository.dart';
+import 'package:taazabazar/features/deals/domain/deal_model.dart';
+import 'package:taazabazar/features/products/data/product_repository.dart';
 import 'package:taazabazar/features/splash/presentation/widgets/freshly_logo.dart';
 import 'package:taazabazar/main.dart';
 
 void main() {
+  setUp(() {
+    ProductRepository().seedForTesting(
+      categories: MockProductsData.categories,
+      products: MockProductsData.allProducts,
+    );
+    DealRepository().setInitialCache([
+      const DealModel(
+        id: 'v_tomato',
+        title: 'Tomato',
+        price: '₹25/kg',
+        originalPrice: '₹35',
+        emoji: '🍅',
+        bgColor: Color(0xFFFFF1F2),
+      ),
+      const DealModel(
+        id: 'd_cow_milk',
+        title: 'Milk',
+        price: '₹60/L',
+        originalPrice: '₹68',
+        emoji: '🥛',
+        bgColor: Color(0xFFF0F9FF),
+      ),
+      const DealModel(
+        id: 'v_spinach',
+        title: 'Spinach',
+        price: '₹20/bunch',
+        originalPrice: '₹28',
+        emoji: '🥬',
+        bgColor: Color(0xFFF0FDF4),
+      ),
+    ]);
+    CouponRepository().setInitialCache([
+      const Coupon(
+        code: 'FRESH50',
+        discount: 50,
+        minOrder: 0,
+        title: '₹50 Flat Off',
+        description: 'Test coupon',
+      ),
+    ]);
+    LocationService.testMockResult = const LocationResult(
+      latitude: 17.448293,
+      longitude: 78.381489,
+      isSuccess: true,
+      flatNo: 'Flat 402, Oakwood',
+      street: 'Plot No. 18, Road No. 2',
+      area: 'Hitec City',
+      city: 'Hyderabad',
+      state: 'Telangana',
+      pincode: '500081',
+    );
+  });
+
   testWidgets('Freshly splash screen displays branding, logo and tagline',
       (WidgetTester tester) async {
     await tester.pumpWidget(const FreshlyApp());
@@ -185,14 +256,12 @@ void main() {
     expect(find.text('Pure.\nFresh.\nOrganic.'), findsOneWidget);
     expect(find.byKey(const ValueKey('banner_shop_now_btn')), findsOneWidget);
 
-    // 3. 8 Categories
+    // 3. Categories
     expect(find.text('Vegetables'), findsWidgets);
     expect(find.text('Fruits'), findsOneWidget);
-    expect(find.text('Dairy'), findsOneWidget);
-    expect(find.text('Organic'), findsOneWidget);
-    expect(find.text('Milk'), findsWidgets);
+    expect(find.text('Dairy & Milk'), findsOneWidget);
     expect(find.text('Eggs'), findsWidgets);
-    expect(find.text('Grocery'), findsOneWidget);
+    expect(find.text('Organic'), findsOneWidget);
     expect(find.text('More'), findsOneWidget);
 
     // 4. Fresh Deals
@@ -222,7 +291,7 @@ void main() {
     expect(find.text('Weekly Pass'), findsOneWidget);
     expect(find.text('Monthly Pass'), findsOneWidget);
     expect(find.text('Quarterly Pass'), findsOneWidget);
-    expect(find.text('Activate Taaza Pass'), findsOneWidget);
+    expect(find.text('Taaza Pass Available Soon'), findsOneWidget);
   });
 
   testWidgets('Freshly Manual Address Form -> Save -> Confirm flow',
@@ -240,7 +309,14 @@ void main() {
     expect(find.text('Area'), findsOneWidget);
     expect(find.text('City'), findsOneWidget);
     expect(find.text('State'), findsOneWidget);
-    expect(find.text('PIN Code'), findsOneWidget);
+    // Enter address details
+    await tester.enterText(find.byType(TextFormField).at(0), 'Flat 402, Oakwood');
+    await tester.enterText(find.byType(TextFormField).at(1), 'Plot No. 18, Road No. 2');
+    await tester.enterText(find.byType(TextFormField).at(2), 'Hitec City');
+    await tester.enterText(find.byType(TextFormField).at(3), 'Hyderabad');
+    await tester.enterText(find.byType(TextFormField).at(4), 'Telangana');
+    await tester.enterText(find.byType(TextFormField).at(5), '500081');
+    await tester.pumpAndSettle();
 
     // Scroll to reveal Save Address button
     await tester.drag(find.byType(ListView), const Offset(0, -400));
@@ -424,9 +500,66 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
+    AddressRepository().setInitialCache(DeliveryAddress.mockAddresses);
+
+    final demoCartItems = [
+      CartItem(
+        product: const Product(
+          id: 'v_tomato',
+          name: 'Fresh Tomato',
+          categoryId: 'veg',
+          categoryName: 'Vegetables',
+          unit: '1 kg',
+          price: 40,
+          originalPrice: 50,
+          emoji: '🍅',
+        ),
+        quantity: 2,
+      ),
+      CartItem(
+        product: const Product(
+          id: 'd_milk',
+          name: 'A2 Cow Milk',
+          categoryId: 'dairy',
+          categoryName: 'Dairy',
+          unit: '1 L',
+          price: 75,
+          originalPrice: 85,
+          emoji: '🥛',
+        ),
+        quantity: 1,
+      ),
+      CartItem(
+        product: const Product(
+          id: 'e_eggs',
+          name: 'Organic Eggs',
+          categoryId: 'dairy',
+          categoryName: 'Dairy',
+          unit: '6 pcs',
+          price: 90,
+          originalPrice: 110,
+          emoji: '🥚',
+        ),
+        quantity: 1,
+      ),
+      CartItem(
+        product: const Product(
+          id: 'v_spinach',
+          name: 'Fresh Spinach',
+          categoryId: 'veg',
+          categoryName: 'Vegetables',
+          unit: '250g',
+          price: 20,
+          originalPrice: 28,
+          emoji: '🥬',
+        ),
+        quantity: 1,
+      ),
+    ];
+
     await tester.pumpWidget(
-      const MaterialApp(
-        home: CartScreen(),
+      MaterialApp(
+        home: CartScreen(initialItems: demoCartItems),
       ),
     );
     await tester.pumpAndSettle();
@@ -555,6 +688,8 @@ void main() {
       ),
     ];
 
+    AddressRepository().setInitialCache(DeliveryAddress.mockAddresses);
+
     await tester.pumpWidget(
       MaterialApp(
         home: CheckoutScreen(
@@ -585,8 +720,8 @@ void main() {
     expect(find.byKey(const ValueKey('payment_method_upi')), findsOneWidget);
     expect(find.byKey(const ValueKey('payment_method_card')), findsOneWidget);
 
-    // Select UPI
-    await tester.tap(find.byKey(const ValueKey('payment_method_upi')));
+    // Select Cash on Delivery
+    await tester.tap(find.byKey(const ValueKey('payment_method_cod')));
     await tester.pumpAndSettle();
 
     // Verify Bill Summary
@@ -602,12 +737,15 @@ void main() {
     // Order Success Screen rendered
     expect(find.text('Order Placed Successfully!'), findsOneWidget);
     expect(find.byKey(const ValueKey('order_id_text')), findsOneWidget);
-    expect(find.text('Instant UPI'), findsOneWidget);
-    expect(find.text('Mock Paid'), findsOneWidget);
+    expect(find.text('Cash on Delivery'), findsOneWidget);
   });
 
   testWidgets('Freshly Orders Screen displays active tabs, timeline, track order and details',
       (WidgetTester tester) async {
+    OrderRepository().setInitialCache([
+      ...MockOrdersData.getActiveOrders(),
+      ...MockOrdersData.getPreviousOrders(),
+    ]);
     tester.view.physicalSize = const Size(800, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
@@ -640,10 +778,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Track Order'), findsOneWidget);
-    expect(find.text('LIVE TRACKING'), findsOneWidget);
+    expect(find.text('ORDER TRACKING'), findsOneWidget);
     expect(find.text('Your Fresh Produce is on the Way! 🚴'), findsOneWidget);
     expect(find.text('Sunrise Organic Farm'), findsOneWidget);
-    expect(find.text('Indiranagar Home'), findsOneWidget);
+    expect(find.byType(MockDeliveryMap), findsOneWidget);
     expect(find.text('Ramesh Kumar'), findsOneWidget);
     expect(find.text('Delivery Safety PIN: 4821'), findsOneWidget);
     expect(find.text('Milestone Details'), findsOneWidget);
@@ -715,8 +853,8 @@ void main() {
 
     // Verify Mock Vector Map
     expect(find.text('Sunrise Organic Farm'), findsOneWidget);
-    expect(find.text('Indiranagar Home'), findsOneWidget);
-    expect(find.text('2.4 km away • ETA 15 mins'), findsOneWidget);
+    expect(find.byType(MockDeliveryMap), findsOneWidget);
+    expect(find.text('Dispatch Hub • ETA 6:00 AM – 8:00 AM'), findsOneWidget);
 
     // Verify Status Timeline
     expect(find.text('Order Status Timeline'), findsOneWidget);
@@ -737,6 +875,13 @@ void main() {
 
   testWidgets('Freshly Pass Screen renders plans, benefits, and activation button',
       (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     await tester.pumpWidget(
       const MaterialApp(
         home: FreshlyPassScreen(isStandalone: true),
@@ -752,20 +897,29 @@ void main() {
     expect(find.text('Weekly Pass'), findsOneWidget);
     expect(find.text('Monthly Pass'), findsOneWidget);
     expect(find.text('Quarterly Pass'), findsOneWidget);
-    expect(find.text('Activate Taaza Pass'), findsOneWidget);
+    expect(find.text('Taaza Pass Available Soon'), findsOneWidget);
 
     // Tap Weekly Pass
+    await tester.ensureVisible(find.text('Weekly Pass'));
     await tester.tap(find.text('Weekly Pass'));
     await tester.pumpAndSettle();
 
-    // Tap Activate
-    await tester.tap(find.text('Activate Taaza Pass'));
+    // Tap Button
+    await tester.ensureVisible(find.text('Taaza Pass Available Soon'));
+    await tester.tap(find.text('Taaza Pass Available Soon'));
     await tester.pumpAndSettle();
-    expect(find.text('🎉 Taaza Pass activated successfully!'), findsOneWidget);
+    expect(find.text('Taaza Pass subscriptions will be available soon.'), findsOneWidget);
   });
 
   testWidgets('Freshly Profile Screen renders user header, menu options, and actions',
       (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     await tester.pumpWidget(
       const MaterialApp(
         home: ProfileScreen(isStandalone: true),
@@ -773,16 +927,387 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('My Profile'), findsOneWidget);
-    expect(find.text('Faisal Ahmed'), findsOneWidget);
-    expect(find.text('PASS VIP'), findsOneWidget);
+    // 1. Header with account summary badge, user name & phone
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text('TaazaBazar Member'), findsOneWidget);
+    expect(find.text('MEMBER'), findsOneWidget);
+    expect(find.text('User'), findsOneWidget);
+
+    // 2. All 8 Menu Items
     expect(find.text('My Orders'), findsOneWidget);
     expect(find.text('Taaza Pass'), findsOneWidget);
     expect(find.text('Saved Addresses'), findsOneWidget);
-    expect(find.text('Customer Support'), findsOneWidget);
-    expect(find.text('Log Out'), findsOneWidget);
+    expect(find.text('Notifications'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Help & Support'), findsOneWidget);
+    expect(find.text('About TaazaBazar'), findsOneWidget);
+    expect(find.text('Logout'), findsOneWidget);
+
+    // 3. Tap Logout to show confirmation dialog
+    await tester.ensureVisible(find.text('Logout'));
+    await tester.tap(find.text('Logout'));
+    await tester.pumpAndSettle();
+    expect(find.text('Are you sure you want to log out of your TaazaBazar account?'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+  });
+
+  testWidgets('Freshly Saved Addresses Screen renders cards, allows default selection, edit and delete',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    AddressRepository().setInitialCache(DeliveryAddress.mockAddresses);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: SavedAddressesScreen(isStandalone: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. App Bar
+    expect(find.text('Saved Addresses'), findsOneWidget);
+
+    // 2. Address cards with Home/Work/Other labels and DEFAULT indicator
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Work'), findsOneWidget);
+    expect(find.text('Other'), findsOneWidget);
+    expect(find.text('DEFAULT'), findsOneWidget);
+    expect(find.text('Flat 402, Oakwood, Plot No. 18, Road No. 2'), findsOneWidget);
+    expect(find.text('Tower B, 5th Floor, Cyber Gateway, Mindspace'), findsOneWidget);
+
+    // 3. Select Work address as default
+    await tester.tap(find.byKey(const ValueKey('address_card_work_1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Default delivery address set to "Work"'), findsOneWidget);
+
+    // 4. Delete an address flow
+    expect(find.byKey(const ValueKey('delete_address_btn_2')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('delete_address_btn_2')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete Address'), findsOneWidget);
+    expect(find.text('Are you sure you want to remove this Other address (Villa 12)?'), findsOneWidget);
+
+    // Confirm delete
+    await tester.tap(find.byKey(const ValueKey('confirm_delete_address_btn')));
+    await tester.pumpAndSettle();
+    expect(find.text('Deleted "Other" address'), findsOneWidget);
+    expect(find.text('Other'), findsNothing);
+
+    // 5. Add New Address Button is visible
+    expect(find.byKey(const ValueKey('add_new_address_btn')), findsOneWidget);
+  });
+
+  testWidgets('Freshly Add / Edit Address Screen validates form and saves address',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AddEditAddressScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Header
+    expect(find.text('Add New Address'), findsOneWidget);
+    expect(find.text('Save As'), findsOneWidget);
+
+    // 2. Form fields
+    expect(find.byKey(const ValueKey('address_flat_field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('address_street_field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('address_area_field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('address_city_field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('address_state_field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('address_pincode_field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('save_address_btn')), findsOneWidget);
+
+    // 3. Form validation on empty submit
+    await tester.tap(find.byKey(const ValueKey('save_address_btn')));
+    await tester.pumpAndSettle();
+    expect(find.text('Please enter House / Flat / Door No.'), findsOneWidget);
+
+    // 4. Fill form
+    await tester.enterText(find.byKey(const ValueKey('address_flat_field')), 'Apt 101');
+    await tester.enterText(find.byKey(const ValueKey('address_street_field')), 'Main Road');
+    await tester.enterText(find.byKey(const ValueKey('address_area_field')), 'Banjara Hills');
+    await tester.enterText(find.byKey(const ValueKey('address_pincode_field')), '500034');
+    await tester.pumpAndSettle();
+
+    // 5. Select Work tag
+    await tester.tap(find.text('Work'));
+    await tester.pumpAndSettle();
+
+    // 6. Tap Save Address
+    await tester.tap(find.byKey(const ValueKey('save_address_btn')));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('Freshly Edit Profile Screen validates fields, pre-fills data, updates initials, and saves',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const initialProfile = UserProfile(
+      uid: 'test_uid_123',
+      name: 'Mohammed Faisal',
+      phone: '+91 9876543210',
+      email: 'faisal@example.com',
+      memberStatus: 'Freshly Member',
+      isPassMember: true,
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: EditProfileScreen(initialProfile: initialProfile),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Check title and pre-filled fields
+    expect(find.text('Edit Profile'), findsOneWidget);
+    expect(find.text('PERSONAL INFORMATION'), findsOneWidget);
+    expect(find.text('Mohammed Faisal'), findsWidgets);
+    expect(find.text('MF'), findsOneWidget); // Initials
+    expect(find.text('+91 9876543210'), findsOneWidget);
+    expect(find.text('faisal@example.com'), findsOneWidget);
+
+    // 2. Clear name and test validation
+    final nameFinder = find.widgetWithText(TextFormField, 'Enter your full name');
+    expect(nameFinder, findsOneWidget);
+    await tester.enterText(nameFinder, '');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Save Changes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Please enter your name'), findsOneWidget);
+
+    // 3. Test typing new name updates avatar initials dynamically
+    await tester.enterText(nameFinder, 'Sarah Connor');
+    await tester.pumpAndSettle();
+    expect(find.text('SC'), findsOneWidget);
+
+    // 4. Test phone validation with invalid phone
+    final phoneFinder = find.widgetWithText(TextFormField, 'e.g. +91 9876543210 or 9876543210');
+    await tester.enterText(phoneFinder, '12345');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Save Changes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Please enter a valid 10-digit Indian phone number'), findsOneWidget);
+
+    // 5. Test email validation with invalid email
+    final emailFinder = find.widgetWithText(TextFormField, 'e.g. yourname@example.com');
+    await tester.enterText(emailFinder, 'not-an-email');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Save Changes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Please enter a valid email address'), findsOneWidget);
+
+    // 6. Fix all fields with valid data
+    await tester.enterText(phoneFinder, '9876543210');
+    await tester.enterText(emailFinder, 'sarah@freshly.in');
+    await tester.pumpAndSettle();
+
+    // 7. Save successfully
+    await tester.tap(find.text('Save Changes'));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('Freshly Checkout Screen allows changing address, selecting saved address, and updating delivery address',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    AddressRepository().setInitialCache(DeliveryAddress.mockAddresses);
+
+    final mockItems = [
+      CartItem(
+        product: MockProductsData.allProducts[0],
+        quantity: 2,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CheckoutScreen(
+          items: mockItems,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify initial default address is Home
+    expect(find.text('Checkout'), findsOneWidget);
+    expect(find.text('Delivery Address'), findsOneWidget);
+    expect(find.textContaining('Oakwood'), findsOneWidget);
+
+    // Tap Change address button
+    expect(find.byKey(const ValueKey('checkout_change_address_btn')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('checkout_change_address_btn')));
+    await tester.pumpAndSettle();
+
+    // Verify SavedAddressesScreen opened
+    expect(find.text('Saved Addresses'), findsOneWidget);
+    expect(find.text('Work'), findsOneWidget);
+
+    // Tap Work address card
+    await tester.tap(find.byKey(const ValueKey('address_card_work_1')));
+    await tester.pumpAndSettle();
+
+    // Verify returned to CheckoutScreen and address is updated to Work
+    expect(find.text('Checkout'), findsOneWidget);
+    expect(find.textContaining('Cyber Gateway'), findsOneWidget);
+
+    // Tap Place Order with selected address
+    await tester.tap(find.byKey(const ValueKey('place_order_btn')));
+    await tester.pumpAndSettle();
+    expect(find.text('Order Placed Successfully!'), findsOneWidget);
+  });
+
+  testWidgets('Freshly Checkout Screen and Cart Screen show neutral fallback when no saved addresses exist and checkout blocks placement',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    // Clear addresses
+    AddressRepository().setInitialCache([]);
+
+    final mockItems = [
+      CartItem(
+        product: MockProductsData.allProducts[0],
+        quantity: 1,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CheckoutScreen(
+          items: mockItems,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify neutral fallback text is shown, not fake demo address
+    expect(find.text('Select delivery address'), findsOneWidget);
+    expect(find.textContaining('Indiranagar, Bengaluru'), findsNothing);
+
+    // Tap Place Order without selecting an address -> should block and show warning
+    await tester.tap(find.byKey(const ValueKey('place_order_btn')));
+    await tester.pumpAndSettle();
+    expect(find.text('Please select or add a delivery address before placing order'), findsOneWidget);
+  });
+
+  testWidgets('Freshly Profile Screen logout signs out and redirects to LoginScreen as new root',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ProfileScreen(isStandalone: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Scroll to Logout and tap
+    await tester.ensureVisible(find.text('Logout'));
+    await tester.tap(find.text('Logout'));
+    await tester.pumpAndSettle();
+
+    // Confirm dialog is shown
+    expect(find.text('Are you sure you want to log out of your TaazaBazar account?'), findsOneWidget);
+
+    // Tap Logout button inside dialog
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Logout'));
+    await tester.pumpAndSettle();
+
+    // Verify navigated to LoginScreen
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.text('Welcome to TaazaBazar'), findsOneWidget);
+    expect(find.text('Mobile Number'), findsOneWidget);
+  });
+
+  testWidgets('Step 30: CartScreen without initialItems starts empty without pre-populated demo products',
+      (WidgetTester tester) async {
+    CartRepository().setInitialCache([]);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: CartScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Your cart is empty'), findsOneWidget);
+    expect(find.text('Fresh Tomato'), findsNothing);
+    expect(find.text('A2 Cow Milk'), findsNothing);
+    expect(find.text('Organic Eggs'), findsNothing);
+    expect(find.text('Fresh Spinach'), findsNothing);
+  });
+
+  testWidgets('Step 30: OrdersScreen starts empty instead of flashing mock orders',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: OrdersScreen(
+          initialActiveOrders: [],
+          initialPreviousOrders: [],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('My Orders'), findsOneWidget);
+    expect(find.text('No Active Orders'), findsOneWidget);
+    expect(find.text('#FRSH-89421'), findsNothing);
+    expect(find.text('#FRSH-74109'), findsNothing);
+  });
+
+  testWidgets('Step 30: ProfileHeader fallback uses neutral User and empty phone',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: ProfileHeader(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('User'), findsOneWidget);
+    expect(find.text('Faisal Ahmed'), findsNothing);
+    expect(find.text('+91 98765 43210'), findsNothing);
   });
 }
+
 
 
 

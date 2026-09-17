@@ -3,10 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../home/presentation/home_screen.dart';
+import '../data/address_repository.dart';
 import '../domain/models/delivery_address.dart';
+import 'add_edit_address_screen.dart';
 
 /// Screen: Address Confirmation Card before entering Home Screen
-class AddressConfirmationScreen extends StatelessWidget {
+class AddressConfirmationScreen extends StatefulWidget {
   final DeliveryAddress address;
 
   const AddressConfirmationScreen({
@@ -14,12 +16,74 @@ class AddressConfirmationScreen extends StatelessWidget {
     required this.address,
   });
 
-  void _confirmAndGoHome(BuildContext context) {
+  @override
+  State<AddressConfirmationScreen> createState() => _AddressConfirmationScreenState();
+}
+
+class _AddressConfirmationScreenState extends State<AddressConfirmationScreen> {
+  late DeliveryAddress _currentAddress;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentAddress = widget.address;
+  }
+
+  Future<void> _handleEditAddress() async {
+    final updated = await Navigator.of(context).push<DeliveryAddress>(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            AddEditAddressScreen(
+          initialAddress: _currentAddress,
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOutCubic;
+          final tween =
+              Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+      ),
+    );
+
+    if (updated != null && mounted) {
+      setState(() {
+        _currentAddress = updated;
+      });
+    }
+  }
+
+  Future<void> _confirmAndGoHome() async {
+    if (_isSaving) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await AddressRepository().saveAddress(_currentAddress);
+    } catch (e) {
+      debugPrint('AddressConfirmationScreen: Error saving address: $e');
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _isSaving = false;
+    });
+
     Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => HomeScreen(
-          deliveryAddress: '${address.area}, ${address.city}',
-          selectedSociety: '${address.flatNo}, ${address.area}',
+          deliveryAddress: '${_currentAddress.area}, ${_currentAddress.city}',
+          selectedSociety: _currentAddress.building?.isNotEmpty == true
+              ? '${_currentAddress.flatNo}, ${_currentAddress.building}'
+              : '${_currentAddress.flatNo}, ${_currentAddress.area}',
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           const begin = Offset(1.0, 0.0);
@@ -136,14 +200,21 @@ class AddressConfirmationScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            GestureDetector(
-                              onTap: () => Navigator.of(context).pop(),
-                              child: Text(
-                                'Edit',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.freshGreen,
+                            InkWell(
+                              onTap: _handleEditAddress,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                child: Text(
+                                  'Edit',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.freshGreen,
+                                  ),
                                 ),
                               ),
                             ),
@@ -153,9 +224,12 @@ class AddressConfirmationScreen extends StatelessWidget {
                         const Divider(color: AppColors.border, height: 1),
                         const SizedBox(height: 18),
 
-                        // House / Flat
+                        // House / Flat & Building
                         Text(
-                          address.flatNo,
+                          _currentAddress.building != null &&
+                                  _currentAddress.building!.isNotEmpty
+                              ? '${_currentAddress.flatNo}, ${_currentAddress.building}'
+                              : _currentAddress.flatNo,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 15.5,
                             fontWeight: FontWeight.w700,
@@ -166,7 +240,7 @@ class AddressConfirmationScreen extends StatelessWidget {
 
                         // Street, Area
                         Text(
-                          '${address.street}, ${address.area}',
+                          '${_currentAddress.street}, ${_currentAddress.area}',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -177,7 +251,7 @@ class AddressConfirmationScreen extends StatelessWidget {
 
                         // City, State - PIN
                         Text(
-                          '${address.city}, ${address.state} - ${address.pincode}',
+                          '${_currentAddress.city}, ${_currentAddress.state} - ${_currentAddress.pincode}',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -186,8 +260,8 @@ class AddressConfirmationScreen extends StatelessWidget {
                         ),
 
                         // Delivery Note (if provided)
-                        if (address.deliveryNote != null &&
-                            address.deliveryNote!.trim().isNotEmpty) ...[
+                        if (_currentAddress.deliveryNote != null &&
+                            _currentAddress.deliveryNote!.trim().isNotEmpty) ...[
                           const SizedBox(height: 16),
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -212,7 +286,7 @@ class AddressConfirmationScreen extends StatelessWidget {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'Note: ${address.deliveryNote}',
+                                    'Note: ${_currentAddress.deliveryNote}',
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w500,
@@ -236,7 +310,7 @@ class AddressConfirmationScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: () => _confirmAndGoHome(context),
+                      onPressed: _isSaving ? null : _confirmAndGoHome,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -246,21 +320,30 @@ class AddressConfirmationScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Confirm Location',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
+                      child: _isSaving
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Confirm Location',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.arrow_forward_rounded, size: 18),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward_rounded, size: 18),
-                        ],
-                      ),
                     ),
                   ),
                   const SizedBox(height: 24),

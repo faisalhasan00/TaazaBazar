@@ -640,4 +640,12 @@ class MockProductsData {
       return null;
     }
   }
+
+  static Product? getProductById(String productId) {
+    try {
+      return allProducts.firstWhere((p) => p.id == productId);
+    } catch (_) {
+      return null;
+    }
+  }
 }

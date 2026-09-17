@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../checkout/data/payment_service.dart';
+import '../../checkout/domain/order_model.dart';
 import '../data/mock_orders_data.dart';
 import '../domain/customer_order.dart';
+import 'invoice_preview_screen.dart';
 import 'widgets/mock_delivery_map.dart';
 import 'widgets/order_status_timeline.dart';
 
@@ -173,6 +176,110 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   ),
                 ),
               ),
+              const Divider(height: 1),
+              InkWell(
+                key: const ValueKey('track_view_invoice_btn'),
+                onTap: () {
+                  Navigator.pop(context);
+                  InvoicePreviewScreen.show(context, _order);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.receipt_long_rounded,
+                          color: Color(0xFF166534),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'View Order Invoice',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            Text(
+                              'Download, print or share official receipt',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+                    ],
+                  ),
+                ),
+              ),
+              if (_order.isCancellable) ...[
+                const Divider(height: 1),
+                InkWell(
+                  key: const ValueKey('track_cancel_order_btn'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _handleCancelOrder();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.cancel_outlined,
+                            color: Color(0xFFDC2626),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Cancel This Order',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFFDC2626),
+                                ),
+                              ),
+                              Text(
+                                _order.paymentStatus == PaymentStatus.paid
+                                    ? 'Cancel and process instant online refund'
+                                    : 'Cancel your COD order before farm harvest',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -180,6 +287,128 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     ),
   );
 }
+
+  Future<void> _handleCancelOrder() async {
+    final order = _order;
+    final isPaidOnline =
+        order.paymentStatus == PaymentStatus.paid &&
+        order.paymentGateway == PaymentGateway.razorpay;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Cancel Order?',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        content: Text(
+          isPaidOnline
+              ? 'Your payment of ₹${order.grandTotal.toStringAsFixed(0)} will be sent for refund to your original payment method.'
+              : 'Your Cash on Delivery order will be cancelled. No payment will be collected.',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 14,
+            color: const Color(0xFF64748B),
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text(
+              'Keep Order',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF64748B),
+              ),
+            ),
+          ),
+          ElevatedButton(
+            key: const ValueKey('confirm_cancel_track_btn'),
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Yes, Cancel',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Cancelling order...'),
+            ],
+          ),
+          backgroundColor: Color(0xFF0F172A),
+          duration: Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      final res = await PaymentService().cancelOrder(
+        orderId: order.orderId,
+        reason: 'Customer requested cancellation from tracking screen',
+      );
+
+      if (!mounted) return;
+
+      if (res.success) {
+        Navigator.pop(context); // Pop back to OrdersScreen
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              res.refundStatus == 'refunded'
+                  ? 'Order cancelled! Refund of ₹${(res.refundAmount ?? order.grandTotal).toStringAsFixed(0)} processed.'
+                  : (res.refundStatus == 'pending'
+                      ? 'Order cancelled! Refund of ₹${(res.refundAmount ?? order.grandTotal).toStringAsFixed(0)} initiated.'
+                      : 'Order ${order.orderId} has been cancelled.'),
+            ),
+            backgroundColor: const Color(0xFF166534),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              res.errorMessage ?? 'Could not cancel order. Please try again.',
+            ),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -281,7 +510,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'LIVE TRACKING',
+                        'ORDER TRACKING',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
@@ -418,12 +647,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 3. Polished Mock Delivery Map Area
-            const MockDeliveryMap(
+            // 3. Polished Delivery Route Preview Area
+            MockDeliveryMap(
               originName: 'Sunrise Organic Farm',
-              destinationName: 'Indiranagar Home',
-              distanceText: '2.4 km away',
-              etaText: '15 mins',
+              destinationName: order.deliveryAddress.isNotEmpty
+                  ? (order.deliveryAddress.length > 22
+                      ? '${order.deliveryAddress.substring(0, 20)}...'
+                      : order.deliveryAddress)
+                  : 'Delivery Address',
+              distanceText: 'Dispatch Hub',
+              etaText: order.timeSlot,
             ),
             const SizedBox(height: 20),
 

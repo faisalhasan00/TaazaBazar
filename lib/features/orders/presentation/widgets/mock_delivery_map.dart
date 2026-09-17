@@ -12,9 +12,9 @@ class MockDeliveryMap extends StatefulWidget {
   const MockDeliveryMap({
     super.key,
     this.originName = 'Sunrise Farm Hub',
-    this.destinationName = 'Home (Flat 402)',
-    this.etaText = '15 mins',
-    this.distanceText = '2.4 km away',
+    this.destinationName = 'Delivery Address',
+    this.etaText = 'Morning Slot',
+    this.distanceText = 'Dispatch Route',
   });
 
   @override

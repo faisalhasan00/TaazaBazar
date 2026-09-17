@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/services/firebase_auth_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../location/presentation/location_setup_screen.dart';
+import '../../profile/data/profile_repository.dart';
 import '../../splash/presentation/widgets/freshly_logo.dart';
-import 'otp_verification_screen.dart';
+// import 'otp_verification_screen.dart'; // Preserved for future OTP reactivation
 import 'register_screen.dart';
 
-/// Screen: Login via mobile number
+/// Screen: Login via mobile number and password
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -17,33 +20,109 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _phoneController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  void _handleContinue() {
-    final phone = _phoneController.text.trim().isEmpty
-        ? '9876543210'
-        : _phoneController.text.trim();
+  Future<void> _handleLogin() async {
+    if (_isLoading) return;
 
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            OtpVerificationScreen(phoneNumber: phone),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOutCubic;
-          final tween =
-              Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
+    final rawPhone = _phoneController.text.trim();
+    final password = _passwordController.text;
+    final normalized = FirebaseAuthService.normalizePhoneNumber(rawPhone);
+
+    if (normalized == null) {
+      _showError('Please enter a valid 10-digit mobile number');
+      return;
+    }
+
+    if (password.isEmpty) {
+      _showError('Please enter your account password');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      /* ============================================================
+       * PRESERVED OTP FLOW (Commented out for future re-activation)
+       * ============================================================
+       * final result = await FirebaseAuthService().sendPhoneOtp(
+       *   phoneNumber: normalized,
+       * );
+       * if (result.isSuccess) {
+       *   Navigator.of(context).push(
+       *     MaterialPageRoute(
+       *       builder: (context) => OtpVerificationScreen(phoneNumber: normalized),
+       *     ),
+       *   );
+       * }
+       * ============================================================ */
+
+      // Direct Phone + Password Sign-In
+      await FirebaseAuthService().signInWithPhoneAndPassword(
+        phone: normalized,
+        password: password,
+      );
+
+      // Ensure Firestore user profile is initialized
+      try {
+        await ProfileRepository().createProfileIfMissing();
+      } catch (e) {
+        debugPrint('LoginScreen: Profile init error: $e');
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Navigate to Location setup / Main App
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const LocationSetupScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOutCubic;
+            final tween =
+                Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      _showError(FirebaseAuthService.mapAuthError(e));
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFDC2626),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }
@@ -97,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Subtitle
                   Center(
                     child: Text(
-                      'Fresh food, delivered to your doorstep.',
+                      'Log in to order fresh farm groceries & daily milk.',
                       textAlign: TextAlign.center,
                       style: AppTypography.bodyMedium.copyWith(
                         color: AppColors.textSecondary,
@@ -105,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 32),
 
                   // Mobile Number Label
                   Text(
@@ -180,6 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         // Phone Number Input
                         Expanded(
                           child: TextField(
+                            key: const ValueKey('login_phone_field'),
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
                             inputFormatters: [
@@ -201,20 +281,97 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               border: InputBorder.none,
                             ),
-                            onSubmitted: (_) => _handleContinue(),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
 
-                  // Continue Button
+                  // Password Label
+                  Text(
+                    'Password',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Password Input
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.border,
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.lock_outline_rounded,
+                            color: AppColors.primary, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            key: const ValueKey('login_password_field'),
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.text,
+                            ),
+                            decoration: const InputDecoration(
+                              hintText: 'Enter your password',
+                              hintStyle: TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              border: InputBorder.none,
+                            ),
+                            onSubmitted: (_) => _handleLogin(),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: AppColors.textMuted,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Login Button
                   SizedBox(
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: _handleContinue,
+                      key: const ValueKey('login_btn'),
+                      onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -224,36 +381,34 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Continue',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Log In & Continue',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.arrow_forward_rounded, size: 18),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward_rounded, size: 18),
-                        ],
-                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-
-                  // Subtext below Continue
-                  Center(
-                    child: Text(
-                      "We'll send you a one-time verification code.",
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
+                  const SizedBox(height: 20),
 
                   // Switch to Register / Sign Up
                   Center(
@@ -314,3 +469,4 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+

@@ -204,6 +204,36 @@ class _TaazaPassScreenState extends State<TaazaPassScreen> {
               isSelected: _selectedPassPlan == 2,
               onTap: () => setState(() => _selectedPassPlan = 2),
             ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFFDE68A)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFFD97706),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Taaza Pass memberships are currently in preview. Subscription activation will launch soon!',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF92400E),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -220,8 +250,8 @@ class _TaazaPassScreenState extends State<TaazaPassScreen> {
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('🎉 Taaza Pass activated successfully!'),
-                    backgroundColor: Color(0xFF166534),
+                    content: Text('Taaza Pass subscriptions will be available soon.'),
+                    backgroundColor: Color(0xFF0F172A),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
@@ -234,7 +264,7 @@ class _TaazaPassScreenState extends State<TaazaPassScreen> {
                 ),
               ),
               child: Text(
-                'Activate Taaza Pass',
+                'Taaza Pass Available Soon',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,

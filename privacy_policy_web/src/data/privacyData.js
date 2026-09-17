@@ -1,118 +1,109 @@
 export const privacySections = [
   {
     id: "overview",
-    title: "1. Overview & Identity of Developer",
+    title: "1. Overview & Scope",
     content: `
-      Welcome to **TaazaBazar** ("App", "we", "us", or "our"), operated as the official mobile grocery ordering service under application package **com.taazabazar.app**. 
-      
-      We are committed to respecting your privacy, protecting your personal data, and providing transparent information regarding our practices in compliance with the **Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011**, the **Digital Personal Data Protection Act (DPDPA), 2023**, and the **Google Play Developer Policy on User Data & Data Safety**.
-      
-      This Privacy Policy applies to all users who download, access, or use the TaazaBazar mobile application or associated web endpoints.
+      Welcome to **TaazaBazar** ("App", "we", "us", or "our"), the mobile farm-fresh grocery ordering application operating under package **com.taazabazar.app**.
+
+      We are dedicated to respecting and protecting your privacy. This Privacy Policy explains what information we collect, how it is used, how it is stored, and your rights regarding your personal data when using the TaazaBazar mobile app.
+
+      This policy applies to all users accessing or placing orders through TaazaBazar.
     `
   },
   {
     id: "data-collected",
     title: "2. Information We Collect",
     content: `
-      We only collect information necessary to fulfill your grocery orders, calculate delivery times, provide customer support, and improve our services:
+      We collect only the minimum information necessary to process your grocery orders, calculate delivery fees, provide customer support, and communicate order milestones:
 
-      - **Personal Identification Data**: Name, mobile phone number, email address (when provided during registration/login).
-      - **Delivery & Address Information**: Street address, apartment/house number, floor, landmark, city, state, postal PIN code, and optional delivery instructions.
-      - **Order & Transaction History**: Details of items purchased, order totals, applied coupons (e.g., TAAZA50), chosen delivery time slots, payment method type (COD, UPI, Card), and order status.
-      - **Location Information**: Approximate and precise device coordinates (GPS) solely collected when you actively grant location permission to set or pinpoint your delivery address on the map.
-      - **Device & Technical Information**: Device model, operating system version, unique device identifiers, IP address, network carrier, and crash logs to ensure app performance and prevent fraud.
-      - **Customer Support Interactions**: Messages, chats, and feedback submitted to TaazaBazar Customer Care.
+      - **Account Identifiers**: Your mobile phone number (used for One-Time Password verification), name, optional email address, and Firebase Authentication user identifier (UID).
+      - **Delivery Addresses**: Complete street address, apartment/building name, floor, landmark, city, and postal PIN code entered for delivery drop-offs.
+      - **Location Information**: Approximate and precise device coordinates (GPS) solely collected in the foreground when you tap "Use Current Location" to assist with address entry. We do NOT collect location in the background or track your continuous movement.
+      - **Order & Transaction Data**: Purchased items, item quantities, subtotal, delivery fee, applied coupon codes, order status, chosen payment method (Cash on Delivery or Razorpay), and payment transaction identifiers.
+      - **Device & Notification Identifiers**: Firebase Cloud Messaging (FCM) registration tokens and notification preferences stored to deliver transactional delivery status alerts and morning harvest updates.
+      - **Customer Inquiries**: Communications, messages, and feedback submitted to TaazaBazar Customer Support.
     `
   },
   {
     id: "data-usage",
     title: "3. How We Use Your Information",
     content: `
-      We process your personal information strictly for legitimate business and service delivery purposes:
+      We process your personal information strictly for legitimate operational purposes:
       
-      1. **Order Processing & Fulfillment**: Dispatching farm-fresh vegetables, dairy, and grocery items to your designated doorstep.
-      2. **Rider Assignment & Route Optimization**: Sharing the delivery address, contact name, and phone number with assigned **Taaza Super Riders** solely for the active order drop-off.
-      3. **Order Status Notifications**: Sending transactional SMS, push notifications, and OTP codes for account authentication and live delivery milestone tracking.
-      4. **Payment Verification**: Processing bills and issuing refunds or wallet credits for cancellations and damaged items.
-      5. **Membership Perks**: Administering **Taaza Pass** benefits including unlimited free delivery and member discounts.
-      6. **Security & Fraud Prevention**: Detecting and preventing fake accounts, fraudulent transactions, and unauthorized access.
+      1. **Order Fulfillment**: Sorting, grading, packing, and dispatching fresh fruits, vegetables, and groceries from our fulfillment hubs.
+      2. **Doorstep Delivery**: Providing delivery coordinates, address details, and contact numbers to delivery personnel solely for active order drop-offs.
+      3. **Order Status Notifications**: Sending automated push notifications regarding order confirmation, preparation, dispatch, and delivery.
+      4. **Payment & Refund Processing**: Facilitating secure payment verification and issuing refunds for eligible cancelled orders.
+      5. **Customer Support**: Responding to questions, resolving delivery queries, and addressing quality reports.
     `
   },
   {
     id: "device-permissions",
     title: "4. Device Permissions Requested",
     content: `
-      TaazaBazar requests only minimum runtime permissions strictly required for core functionality:
+      TaazaBazar requests only standard runtime permissions required for core app functions:
       
-      - **INTERNET / Network State** (\`android.permission.INTERNET\`): Required to connect with our secure catalog API, submit orders, and fetch live tracking updates.
-      - **Location** (\`ACCESS_FINE_LOCATION\` / \`ACCESS_COARSE_LOCATION\` - *Optional*): Used exclusively while the app is active to automatically populate your current address and locate nearby delivery hubs. You can manually enter your address without granting GPS access.
-      - **Notifications** (\`POST_NOTIFICATIONS\` - *Android 13+*): To send critical order status updates (e.g., "Out for Delivery", "Rider Arrived", "OTP").
+      - **Internet Access** (\`android.permission.INTERNET\`, \`ACCESS_NETWORK_STATE\`): Required to communicate with secure catalog and ordering services.
+      - **Location** (\`ACCESS_FINE_LOCATION\`, \`ACCESS_COARSE_LOCATION\` - *Optional*): Used exclusively in the foreground when you choose to auto-detect your delivery address. You can always enter your address manually without granting GPS access.
+      - **Notifications** (\`POST_NOTIFICATIONS\` - *Android 13+*): To deliver real-time order status updates and delivery notifications.
     `
   },
   {
     id: "data-sharing",
-    title: "5. Third-Party Sharing & Service Providers",
+    title: "5. Third-Party Services & Data Sharing",
     content: `
       **We do not sell, rent, or trade your personal data to any third party for marketing or advertising.**
       
-      We share data only with trusted service partners under strict confidentiality agreements:
-      - **Delivery Logistics Partners & Riders**: Only recipient name, delivery coordinates, address, and delivery PIN are shared during active deliveries.
-      - **Payment Gateways (UPI, Cards, Net Banking)**: Transaction amounts and tokenized tokens handled by PCI-DSS compliant banking partners (Razorpay / Stripe / NPCI). We never store raw card CVV numbers.
-      - **Cloud Infrastructure & Database**: Hosted on secure, encrypted Google Cloud Platform (GCP) and ISO/IEC 27001 certified data centers located in India.
-      - **Legal Authorities**: When mandated by applicable Indian law, court order, or governmental enforcement agency.
+      We share data only with trusted technical service providers necessary to provide our services:
+      - **Google Firebase**: Authentication, Cloud Firestore database storage, and Firebase Cloud Messaging for push notification delivery.
+      - **Razorpay**: Secure online payment checkout, signature verification, and automated refund processing. TaazaBazar does not store your credit/debit card numbers, CVVs, or banking credentials on its servers.
+      - **Delivery Personnel**: Recipient name, delivery address, and contact number during active order fulfillment.
+      - **Legal Authorities**: Where required by applicable law, court order, or governmental regulation.
     `
   },
   {
     id: "data-retention",
-    title: "6. Data Retention & Security Safeguards",
+    title: "6. Data Retention & Security Measures",
     content: `
-      - **Encryption**: All data transmitted between your device and our servers is secured using industry-standard **TLS 1.3 / HTTPS encryption**.
-      - **Storage Security**: Stored personal records are guarded with AES-256 database encryption, role-based access control (RBAC), and continuous vulnerability monitoring.
-      - **Retention Period**: We retain your personal data as long as your TaazaBazar account is active, or as necessary to comply with legal tax, invoicing, and accounting requirements (typically 5 to 7 years under Indian Goods and Services Tax laws).
+      - **Security Measures**: We use appropriate technical and organizational measures designed to protect your information. Data in transit is secured using industry-standard TLS/HTTPS encryption.
+      - **Data Retention**: We retain personal information for as long as reasonably necessary to provide our services, maintain order history for digital invoices, comply with applicable statutory obligations, and resolve disputes.
     `
   },
   {
     id: "user-rights-deletion",
-    title: "7. User Rights & Account / Data Deletion",
+    title: "7. User Rights & Account Deletion",
     content: `
-      In accordance with Google Play User Data Policy and the DPDPA, you retain complete control over your data:
+      You have the right to review, update, or request deletion of your personal data:
       
-      - **Access & Correction**: You can review and update your profile name, email, and saved addresses directly in the **Profile** section of the app.
-      - **Consent Revocation**: You can withdraw location or notification permissions anytime in your device settings.
-      - **Account & Data Deletion Request**: You have the right to request permanent deletion of your TaazaBazar account and associated personal data.
-      
-      To submit an account deletion request:
-      1. Use the **[Data Deletion Request Form](#data-deletion)** on this page.
-      2. Or send an email to **care@taazabazar.in** with the subject *"Account Deletion Request"* and your registered mobile number.
-      3. Your personal identifiers and addresses will be permanently purged within **7 business days**.
+      - **Review & Update**: You can update your name and saved delivery addresses anytime in the **Profile** section of the app.
+      - **Notification Controls**: You can customize notification preferences under Profile → Settings → Push Notifications.
+      - **Account & Data Deletion**: To request deletion of your account, saved addresses, and device tokens, please send an email to **care@taazabazar.in** with your registered mobile number and the subject *"Account Deletion Request"*. Deletion requests are processed manually by our customer support team upon identity verification.
     `
   },
   {
     id: "children-privacy",
     title: "8. Children's Privacy",
     content: `
-      TaazaBazar is not directed toward children under the age of 18. We do not knowingly collect personal identifiable information from minors. If you believe a child has provided us with personal information, please contact us immediately for prompt deletion.
+      TaazaBazar is not intended for use by children under the age of 18. We do not knowingly collect personal identifiable information from minors. If you believe a child has provided us with personal information, please contact Customer Support for prompt deletion.
     `
   },
   {
     id: "policy-updates",
-    title: "9. Changes to This Privacy Policy",
+    title: "9. Policy Updates",
     content: `
-      We may periodically update this policy to reflect changes in our legal obligations or application features. When significant changes occur, we will update the "Effective Date" at the top and notify users via an in-app prompt. Continued use of TaazaBazar following such notification constitutes acceptance.
+      We may periodically update this Privacy Policy to reflect operational or regulatory changes. The updated version will be posted with an updated "Last Updated" date. We encourage you to review this policy periodically.
     `
   },
   {
-    id: "grievance-officer",
-    title: "10. Grievance Officer & Contact Information",
+    id: "contact-support",
+    title: "10. Contact & Support Information",
     content: `
-      If you have any questions, concerns, or grievances regarding our privacy practices or data handling, please contact our designated Grievance Officer:
+      For any questions, feedback, or support regarding our privacy practices or data handling, please contact:
 
-      - **Officer Name**: Grievance Redressal Desk
-      - **Organization**: TaazaBazar Online Grocery Private Limited
-      - **Official Email**: **care@taazabazar.in** / **grievance@taazabazar.in**
-      - **Support Desk**: 24x7 In-App Chat Support
-      - **App Package**: \`com.taazabazar.app\`
-      - **Operating Region**: Bengaluru, Karnataka, India - 560038
+      - **Application**: TaazaBazar (\`com.taazabazar.app\`)
+      - **Support Email**: **care@taazabazar.in**
+      - **Customer Care Phone**: **+91 98765 12340**
+      - **Operating Hours**: Mon – Sun: 6:00 AM – 9:00 PM IST
     `
   }
 ];

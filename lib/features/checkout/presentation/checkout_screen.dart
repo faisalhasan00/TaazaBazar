@@ -1,9 +1,21 @@
 import 'dart:math';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/delivery_slot_helper.dart';
+import '../../cart/data/cart_repository.dart';
 import '../../cart/domain/cart_item.dart';
+import '../../location/data/address_repository.dart';
+import '../../location/domain/models/delivery_address.dart';
+import '../../location/presentation/saved_addresses_screen.dart';
+import '../../orders/data/order_repository.dart';
+import '../../orders/domain/customer_order.dart';
+import '../data/payment_service.dart';
 import '../domain/order_model.dart';
 import 'order_success_screen.dart';
+import 'payment_success_receipt_screen.dart';
 import 'widgets/checkout_bill_summary.dart';
 import 'widgets/delivery_slot_picker.dart';
 import 'widgets/payment_method_selector.dart';
@@ -29,8 +41,17 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   late String _currentAddress;
-  String _selectedSlot = '6:00 AM – 8:00 AM';
+  DeliveryAddress? _selectedAddressModel;
   PaymentMethod _selectedPayment = PaymentMethod.cashOnDelivery;
+  String _selectedSlot = '6:00 AM – 8:00 AM';
+  bool _isPlacingOrder = false;
+  final PaymentService _paymentService = PaymentService();
+
+  // Pending online payment state tracking
+  String? _pendingOrderId;
+  String? _pendingGatewayOrderId;
+  DeliverySlot? _pendingSlot;
+  bool _isNavigatedToSuccess = false;
 
   final List<String> _slots = [
     '6:00 AM – 8:00 AM',
@@ -41,50 +62,495 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    final defaultAddr = AddressRepository().getDefaultAddress();
+    _selectedAddressModel = defaultAddr;
     _currentAddress = widget.deliveryAddress ??
-        'Flat 402, Green Valley Apartments, Indiranagar, Bengaluru, 560038';
+        defaultAddr?.formattedAddress ??
+        'Select delivery address';
+
+    _paymentService.initialize(
+      onPaymentSuccess: _handlePaymentSuccess,
+      onPaymentError: _handlePaymentError,
+      onExternalWallet: _handleExternalWallet,
+    );
+  }
+
+  @override
+  void dispose() {
+    _paymentService.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    debugPrint(
+      'CheckoutScreen: Razorpay Test payment success received: '
+      'paymentId=${response.paymentId}, orderId=${response.orderId}, signature=${response.signature}',
+    );
+    if (!mounted) return;
+
+    final localOrderId = _pendingOrderId;
+    final gatewayOrderId = response.orderId ?? _pendingGatewayOrderId;
+    final gatewayPaymentId = response.paymentId;
+    final signature = response.signature;
+
+    if (localOrderId == null ||
+        gatewayOrderId == null ||
+        gatewayPaymentId == null ||
+        signature == null ||
+        signature.isEmpty) {
+      debugPrint('CheckoutScreen: Missing required parameters for verification payload.');
+      setState(() => _isPlacingOrder = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Payment received, but verification details were incomplete. Please check your order history.',
+          ),
+          backgroundColor: Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Cryptographically verifying payment with bank...'),
+          ],
+        ),
+        backgroundColor: Color(0xFF166534),
+        duration: Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    // Call Cloud Function to cryptographically verify signature
+    final verificationResult = await _paymentService.verifyPaymentSignature(
+      orderId: localOrderId,
+      gatewayOrderId: gatewayOrderId,
+      gatewayPaymentId: gatewayPaymentId,
+      signature: signature,
+    );
+
+    if (!mounted) return;
+
+    if (verificationResult.success && verificationResult.paymentStatus == 'paid') {
+      if (_isNavigatedToSuccess) return;
+      _isNavigatedToSuccess = true;
+
+      final slotDate = _pendingSlot?.date ?? DeliverySlotHelper.getTomorrowSlotDate();
+      final slot = _pendingSlot ??
+          DeliverySlot(
+            date: slotDate,
+            timeRange: _selectedSlot,
+            label: 'Early Morning Harvest Drop',
+          );
+
+      final paidFreshlyOrder = FreshlyOrder(
+        orderId: localOrderId,
+        items: widget.items,
+        deliveryAddress: _currentAddress,
+        deliveryLatitude: _selectedAddressModel?.latitude,
+        deliveryLongitude: _selectedAddressModel?.longitude,
+        slot: slot,
+        paymentMethod: _selectedPayment,
+        paymentStatus: PaymentStatus.paid,
+        paymentGateway: PaymentGateway.razorpay,
+        gatewayOrderId: gatewayOrderId,
+        gatewayPaymentId: gatewayPaymentId,
+        paidAt: verificationResult.paidAt ?? DateTime.now(),
+        itemTotal: _itemTotal,
+        deliveryFee: _deliveryFee,
+        couponDiscount: widget.couponDiscount,
+        grandTotal: _grandTotal,
+        orderTime: DateTime.now(),
+      );
+
+      final paidCustomerOrder = CustomerOrder(
+        orderId: localOrderId.startsWith('#') ? localOrderId : '#$localOrderId',
+        orderDate: DateTime.now(),
+        slotDate: slot.date,
+        timeSlot: _selectedSlot,
+        status: OrderStatus.placed,
+        items: widget.items,
+        itemTotal: _itemTotal,
+        deliveryFee: _deliveryFee,
+        discount: widget.couponDiscount,
+        grandTotal: _grandTotal,
+        paymentMethod: _selectedPayment,
+        paymentStatus: PaymentStatus.paid,
+        paymentGateway: PaymentGateway.razorpay,
+        gatewayOrderId: gatewayOrderId,
+        gatewayPaymentId: gatewayPaymentId,
+        paidAt: verificationResult.paidAt ?? DateTime.now(),
+        deliveryAddress: _currentAddress,
+        deliveryLatitude: _selectedAddressModel?.latitude,
+        deliveryLongitude: _selectedAddressModel?.longitude,
+        timeline: [
+          const OrderTimelineStep(
+            status: OrderStatus.placed,
+            time: 'Just now',
+            title: 'Order Placed & Paid',
+            subtitle: 'Paid via Razorpay',
+            isCompleted: true,
+            isCurrent: true,
+          ),
+          const OrderTimelineStep(
+            status: OrderStatus.preparing,
+            time: 'Sunrise Harvest',
+            title: 'Farm Harvest & Quality Inspection',
+            subtitle: 'Sunrise Organic Farm, Shadnagar Hub',
+            isCompleted: false,
+          ),
+          OrderTimelineStep(
+            status: OrderStatus.outForDelivery,
+            time: _selectedSlot,
+            title: 'Out for Delivery',
+            subtitle: 'On the way with Taaza Rider',
+            isCompleted: false,
+          ),
+          const OrderTimelineStep(
+            status: OrderStatus.delivered,
+            time: 'Doorstep Drop',
+            title: 'Delivered',
+            subtitle: 'Doorstep contactless handoff',
+            isCompleted: false,
+          ),
+        ],
+      );
+
+      // Save verified paid order to Cloud Firestore & local cache
+      await OrderRepository().placeOrder(paidCustomerOrder);
+
+      // Only after verified payment, clear the cart
+      await CartRepository().clearCart();
+
+      if (!mounted) return;
+
+      setState(() => _isPlacingOrder = false);
+
+      // 2. Navigate to PaymentSuccessReceiptScreen representing animated receipt & verified payment
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentSuccessReceiptScreen(
+            order: paidFreshlyOrder,
+            gatewayPaymentId: gatewayPaymentId,
+            gatewayOrderId: gatewayOrderId,
+            amountPaid: _grandTotal,
+          ),
+        ),
+      );
+    } else {
+      // Verification failed or pending
+      setState(() => _isPlacingOrder = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            verificationResult.errorMessage ??
+                'Payment verification could not be confirmed. If money was deducted, your order will update shortly.',
+          ),
+          backgroundColor: const Color(0xFFDC2626),
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    debugPrint(
+      'CheckoutScreen: Razorpay Test payment error: '
+      'code=${response.code}, message=${response.message}',
+    );
+    if (!mounted) return;
+    setState(() => _isPlacingOrder = false);
+
+    final isCancelled = response.code == Razorpay.PAYMENT_CANCELLED ||
+        (response.message != null &&
+            response.message!.toLowerCase().contains('cancel'));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isCancelled
+              ? 'Payment cancelled. Your cart is still saved. You can try again.'
+              : 'Payment could not be completed: ${response.message ?? "Please try again"}',
+        ),
+        backgroundColor:
+            isCancelled ? const Color(0xFF64748B) : const Color(0xFFDC2626),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    debugPrint('CheckoutScreen: External wallet selected: ${response.walletName}');
+    if (!mounted) return;
+    setState(() => _isPlacingOrder = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('External wallet selected: ${response.walletName}'),
+        backgroundColor: const Color(0xFF2563EB),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   double get _itemTotal {
     return widget.items.fold(0.0, (sum, item) => sum + item.subtotal);
   }
 
-  double get _deliveryFee => _itemTotal >= 199 ? 0.0 : 25.0;
+  double get _deliveryFee => _itemTotal >= AppConstants.freeDeliveryThreshold
+      ? 0.0
+      : AppConstants.standardDeliveryFee;
 
   double get _grandTotal {
     final total = _itemTotal + _deliveryFee - widget.couponDiscount;
     return total > 0 ? total : 0.0;
   }
 
-  void _placeOrder() {
-    final randomNum = 10000 + Random().nextInt(90000);
-    final orderId = 'FRSH-$randomNum';
-
-    final order = FreshlyOrder(
-      orderId: orderId,
-      items: widget.items,
-      deliveryAddress: _currentAddress,
-      slot: DeliverySlot(
-        date: 'Tomorrow (Sun, 13 Sep)',
-        timeRange: _selectedSlot,
-        label: 'Early Morning Harvest Drop',
-      ),
-      paymentMethod: _selectedPayment,
-      itemTotal: _itemTotal,
-      deliveryFee: _deliveryFee,
-      couponDiscount: widget.couponDiscount,
-      grandTotal: _grandTotal,
-      orderTime: DateTime.now(),
-    );
-
-    Navigator.pushReplacement(
+  Future<void> _handleChangeAddress() async {
+    final selected = await Navigator.push<DeliveryAddress>(
       context,
       MaterialPageRoute(
-        builder: (context) => OrderSuccessScreen(
-          order: order,
+        builder: (context) => SavedAddressesScreen(
+          isStandalone: true,
+          onAddressSelected: (addr) {
+            Navigator.pop(context, addr);
+          },
         ),
       ),
     );
+
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedAddressModel = selected;
+        _currentAddress = selected.formattedAddress;
+      });
+    }
+  }
+
+  Future<void> _placeOrder() async {
+    if (_isPlacingOrder) return; // Prevent double taps
+
+    if (_currentAddress == 'Select delivery address' ||
+        _currentAddress.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Please select or add a delivery address before placing order'),
+          backgroundColor: Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isPlacingOrder = true);
+
+    final randomNum = 10000 + Random().nextInt(90000);
+    final orderId = 'FRSH-$randomNum';
+    final slotDate = DeliverySlotHelper.getTomorrowSlotDate();
+    final slot = DeliverySlot(
+      date: slotDate,
+      timeRange: _selectedSlot,
+      label: 'Early Morning Harvest Drop',
+    );
+
+    // ==========================================
+    // 1. CASH ON DELIVERY FLOW (100% Preserved)
+    // ==========================================
+    if (_selectedPayment == PaymentMethod.cashOnDelivery) {
+      try {
+        final freshlyOrder = FreshlyOrder(
+          orderId: orderId,
+          items: widget.items,
+          deliveryAddress: _currentAddress,
+          deliveryLatitude: _selectedAddressModel?.latitude,
+          deliveryLongitude: _selectedAddressModel?.longitude,
+          slot: slot,
+          paymentMethod: PaymentMethod.cashOnDelivery,
+          paymentStatus: PaymentStatus.pending,
+          paymentGateway: PaymentGateway.cod,
+          itemTotal: _itemTotal,
+          deliveryFee: _deliveryFee,
+          couponDiscount: widget.couponDiscount,
+          grandTotal: _grandTotal,
+          orderTime: DateTime.now(),
+        );
+
+        final customerOrder = CustomerOrder(
+          orderId: '#$orderId',
+          orderDate: DateTime.now(),
+          slotDate: slot.date,
+          timeSlot: _selectedSlot,
+          status: OrderStatus.placed,
+          items: widget.items,
+          itemTotal: _itemTotal,
+          deliveryFee: _deliveryFee,
+          discount: widget.couponDiscount,
+          grandTotal: _grandTotal,
+          paymentMethod: PaymentMethod.cashOnDelivery,
+          paymentStatus: PaymentStatus.pending,
+          paymentGateway: PaymentGateway.cod,
+          deliveryAddress: _currentAddress,
+          deliveryLatitude: _selectedAddressModel?.latitude,
+          deliveryLongitude: _selectedAddressModel?.longitude,
+          timeline: [
+            const OrderTimelineStep(
+              status: OrderStatus.placed,
+              time: 'Just now',
+              title: 'Order Placed & Confirmed',
+              subtitle: 'Pay on Drop',
+              isCompleted: true,
+              isCurrent: true,
+            ),
+            const OrderTimelineStep(
+              status: OrderStatus.preparing,
+              time: 'Sunrise Harvest',
+              title: 'Farm Harvest & Quality Inspection',
+              subtitle: 'Sunrise Organic Farm, Shadnagar Hub',
+              isCompleted: false,
+            ),
+            OrderTimelineStep(
+              status: OrderStatus.outForDelivery,
+              time: _selectedSlot,
+              title: 'Out for Delivery',
+              subtitle: 'On the way with Taaza Rider',
+              isCompleted: false,
+            ),
+            const OrderTimelineStep(
+              status: OrderStatus.delivered,
+              time: 'Doorstep Drop',
+              title: 'Delivered',
+              subtitle: 'Doorstep contactless handoff',
+              isCompleted: false,
+            ),
+          ],
+        );
+
+        // 1. Save to Cloud Firestore
+        await OrderRepository().placeOrder(customerOrder);
+
+        // 2. Clear user's Firestore cart ONLY after order is created successfully
+        await CartRepository().clearCart();
+
+        if (!mounted) return;
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OrderSuccessScreen(
+              order: freshlyOrder,
+            ),
+          ),
+        );
+      } catch (e) {
+        debugPrint('CheckoutScreen: COD _placeOrder error: $e');
+        if (mounted) {
+          final fallbackOrder = FreshlyOrder(
+            orderId: orderId,
+            items: widget.items,
+            deliveryAddress: _currentAddress,
+            slot: slot,
+            paymentMethod: _selectedPayment,
+            paymentStatus: PaymentStatus.pending,
+            paymentGateway: PaymentGateway.cod,
+            itemTotal: _itemTotal,
+            deliveryFee: _deliveryFee,
+            couponDiscount: widget.couponDiscount,
+            grandTotal: _grandTotal,
+            orderTime: DateTime.now(),
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => OrderSuccessScreen(
+                order: fallbackOrder,
+              ),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isPlacingOrder = false);
+        }
+      }
+      return;
+    }
+
+    // ==========================================
+    // 2. ONLINE PAYMENT FLOW (Razorpay Test Mode)
+    // ==========================================
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final result = await _paymentService.createRazorpayOrder(
+        orderId: orderId,
+        items: widget.items,
+        couponCode: widget.appliedCoupon,
+        deliveryAddress: _currentAddress,
+        deliveryLatitude: _selectedAddressModel?.latitude,
+        deliveryLongitude: _selectedAddressModel?.longitude,
+        slotDate: slot.date,
+        timeSlot: _selectedSlot,
+      );
+
+      if (!result.success ||
+          result.gatewayOrderId == null ||
+          result.gatewayOrderId!.isEmpty) {
+        if (!mounted) return;
+        setState(() => _isPlacingOrder = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.errorMessage ??
+                'Could not initialize payment. Please try again.'),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      _pendingOrderId = orderId;
+      _pendingGatewayOrderId = result.gatewayOrderId!;
+      _pendingSlot = slot;
+      _isNavigatedToSuccess = false;
+
+      // Open Razorpay Checkout Sheet in Test Mode
+      _paymentService.openCheckout(
+        orderId: orderId,
+        gatewayOrderId: result.gatewayOrderId!,
+        amountInPaise: result.amountInPaise,
+        keyId: result.keyId,
+        customerName: user?.displayName ?? 'Valued Customer',
+        customerPhone: user?.phoneNumber ?? '',
+        customerEmail: user?.email ?? '',
+      );
+    } catch (e) {
+      debugPrint('CheckoutScreen: Online payment initialization error: $e');
+      if (mounted) {
+        setState(() => _isPlacingOrder = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Payment gateway temporarily unavailable. Please try again.'),
+            backgroundColor: Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -152,15 +618,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                       InkWell(
                         key: const ValueKey('checkout_change_address_btn'),
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Address selector modal'),
-                              backgroundColor: Color(0xFF166534),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
+                        onTap: _handleChangeAddress,
                         child: Text(
                           'Change',
                           style: GoogleFonts.plusJakartaSans(
@@ -260,33 +718,45 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   height: 50,
                   child: ElevatedButton(
                     key: const ValueKey('place_order_btn'),
-                    onPressed: _placeOrder,
+                    onPressed: _isPlacingOrder ? null : _placeOrder,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF166534),
+                      disabledBackgroundColor:
+                          const Color(0xFF166534).withValues(alpha: 0.6),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Place Order',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                    child: _isPlacingOrder
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Place Order',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 18,
-                          color: Colors.white,
-                        ),
-                      ],
-                    ),
                   ),
                 ),
               ),

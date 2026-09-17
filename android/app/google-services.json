@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "752330450569",
+    "project_id": "taazabazar-cd20d",
+    "storage_bucket": "taazabazar-cd20d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:752330450569:android:126015a7aaea3ae4054858",
+        "android_client_info": {
+          "package_name": "com.taazabazar.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9ipt0e_NW6jW8JH6yzA_jDDygnGSgPpU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

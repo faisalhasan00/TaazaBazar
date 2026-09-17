@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/services/firebase_auth_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../location/presentation/location_setup_screen.dart';
+import '../../profile/data/profile_repository.dart';
 import '../../splash/presentation/widgets/freshly_logo.dart';
 import 'login_screen.dart';
-import 'otp_verification_screen.dart';
+// import 'otp_verification_screen.dart'; // Preserved for future OTP reactivation
 
-/// Screen: User Registration / Sign Up Form
+/// Screen: User Registration / Sign Up Form (Phone + Password)
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -19,27 +22,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _referralController = TextEditingController();
+  bool _obscurePassword = true;
   bool _agreedToTerms = true;
   String? _errorMessage;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _passwordController.dispose();
     _emailController.dispose();
     _referralController.dispose();
     super.dispose();
   }
 
-  void _handleRegister() {
+  Future<void> _handleRegister() async {
+    if (_isLoading) return;
+
     setState(() {
       _errorMessage = null;
     });
 
     final name = _nameController.text.trim();
-    final phone = _phoneController.text.trim();
+    final rawPhone = _phoneController.text.trim();
+    final password = _passwordController.text;
+    final normalized = FirebaseAuthService.normalizePhoneNumber(rawPhone);
 
     if (name.isEmpty) {
       setState(() {
@@ -48,9 +59,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    if (phone.length < 10) {
+    if (normalized == null) {
       setState(() {
         _errorMessage = 'Please enter a valid 10-digit mobile number';
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      setState(() {
+        _errorMessage = 'Password must be at least 6 characters long';
       });
       return;
     }
@@ -62,25 +80,83 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            OtpVerificationScreen(
-          phoneNumber: phone.isEmpty ? '9876543210' : phone,
-        ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOutCubic;
-          final tween =
-              Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      /* ============================================================
+       * PRESERVED OTP FLOW (Commented out for future re-activation)
+       * ============================================================
+       * final result = await FirebaseAuthService().sendPhoneOtp(
+       *   phoneNumber: normalized,
+       * );
+       * if (result.isSuccess) {
+       *   Navigator.of(context).push(
+       *     MaterialPageRoute(
+       *       builder: (context) => OtpVerificationScreen(
+       *         phoneNumber: normalized,
+       *         userName: name,
+       *         email: _emailController.text.trim(),
+       *         referralCode: _referralController.text.trim(),
+       *       ),
+       *     ),
+       *   );
+       * }
+       * ============================================================ */
+
+      // Direct Phone + Password Registration
+      final userCred = await FirebaseAuthService().registerWithPhoneAndPassword(
+        phone: normalized,
+        password: password,
+        name: name,
+        email: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
+      );
+
+      // Save user profile to Cloud Firestore
+      if (userCred != null) {
+        try {
+          await ProfileRepository().updateProfile(
+            name: name,
+            phone: normalized,
+            email: _emailController.text.trim(),
           );
-        },
-      ),
-    );
+        } catch (e) {
+          debugPrint('RegisterScreen: Profile sync error: $e');
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Navigate to Location setup / Main app
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const LocationSetupScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOutCubic;
+            final tween =
+                Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = FirebaseAuthService.mapAuthError(e);
+      });
+    }
   }
 
   @override
@@ -269,6 +345,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Password Input
+                    _buildLabel('Password (Min. 6 characters) *'),
+                    const SizedBox(height: 6),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.border,
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.lock_outline_rounded, color: AppColors.primary, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              key: const ValueKey('register_password_field'),
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.text,
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: 'Create a password (min 6 characters)',
+                                hintStyle: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                border: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: AppColors.textMuted,
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
                     // Email Address Input (Optional)
                     _buildLabel('Email Address (Optional)'),
                     const SizedBox(height: 6),
@@ -334,7 +474,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       height: 52,
                       child: ElevatedButton(
                         key: const ValueKey('register_btn'),
-                        onPressed: _handleRegister,
+                        onPressed: _isLoading ? null : _handleRegister,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
@@ -344,21 +484,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Register & Continue',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 15.5,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.2,
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  valueColor:
+                                      AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Register & Continue',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.arrow_forward_rounded, size: 18),
+                                ],
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.arrow_forward_rounded, size: 18),
-                          ],
-                        ),
                       ),
                     ),
                     const SizedBox(height: 20),

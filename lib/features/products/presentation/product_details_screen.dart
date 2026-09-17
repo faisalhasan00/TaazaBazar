@@ -1,6 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../data/mock_products_data.dart';
+import '../../cart/data/cart_repository.dart';
+import '../../location/data/address_repository.dart';
+import '../../location/domain/models/delivery_address.dart';
+import '../../location/presentation/saved_addresses_screen.dart';
+import '../../subscription/presentation/widgets/build_your_own_sheet.dart';
+import '../data/product_repository.dart';
 import '../domain/product_model.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
@@ -22,9 +28,13 @@ class ProductDetailsScreen extends StatefulWidget {
 }
 
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
+  final _cartRepo = CartRepository();
+  final _productRepo = ProductRepository();
   late int _quantity;
   bool _isFavorite = false;
   int _selectedVariantIndex = 0;
+  DeliveryAddress? _deliveryAddress;
+  StreamSubscription<List<DeliveryAddress>>? _addressSub;
 
   final List<String> _variants = ['Standard Pack', 'Double Saver (2x)', 'Family Pack (4x)'];
 
@@ -32,6 +42,20 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   void initState() {
     super.initState();
     _quantity = widget.initialQuantity > 0 ? widget.initialQuantity : 1;
+    _deliveryAddress = AddressRepository().getDefaultAddress();
+    _addressSub = AddressRepository().getAddressesStream().listen((list) {
+      if (mounted) {
+        setState(() {
+          _deliveryAddress = AddressRepository().getDefaultAddress();
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _addressSub?.cancel();
+    super.dispose();
   }
 
   void _increment() {
@@ -58,6 +82,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   double get _totalPrice => _unitPrice * _quantity;
 
   void _handleAddToCart() {
+    _cartRepo.addItem(widget.product, quantity: _quantity);
     widget.onCartUpdated?.call(widget.product.id, _quantity);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -70,8 +95,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Added $_quantity × ${widget.product.name} to your basket',
+                'Added $_quantity x ${widget.product.name} to cart!',
                 style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
                 ),
@@ -85,7 +111,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   }
 
   List<Product> get _relatedProducts {
-    return MockProductsData.allProducts
+    return _productRepo.cachedProducts
         .where((p) => p.id != widget.product.id && p.categoryId == widget.product.categoryId)
         .take(6)
         .toList();
@@ -93,7 +119,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final address = widget.deliveryAddress ?? 'Flat 402, Oakwood, Shadnagar';
+    final address = widget.deliveryAddress ?? _deliveryAddress?.formattedAddress;
     final product = widget.product;
 
     return Scaffold(
@@ -132,6 +158,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       // 5. Fresh / Organic Quality Banner
                       SliverToBoxAdapter(
                         child: _buildQualityBanner(product),
+                      ),
+
+                      // 5.5 Subscribe & Save Recurring Card
+                      SliverToBoxAdapter(
+                        child: _buildSubscriptionOptionCard(product),
                       ),
 
                       // 6. Delivery Information Card
@@ -722,8 +753,102 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     );
   }
 
+  /// 5.5 Subscribe & Save Recurring Delivery Option
+  Widget _buildSubscriptionOptionCard(Product product) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 14),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDF4),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFF16A34A).withValues(alpha: 0.3),
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.calendar_month_rounded,
+                color: Color(0xFF166534),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Subscribe to Daily / Weekly Delivery',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF166534),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Delivered every morning between 6:00 – 8:00 AM',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF15803D),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => const BuildYourOwnSheet(),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF166534),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              child: Text(
+                'Subscribe',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// 6. Delivery Information Card
-  Widget _buildDeliveryInfoCard(String address) {
+  Widget _buildDeliveryInfoCard(String? address) {
+    final hasValidAddress = address != null && address.trim().isNotEmpty;
+    final displayText = hasValidAddress ? 'Deliver to: $address' : 'Deliver to: Add delivery address';
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
       child: Container(
@@ -787,23 +912,45 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               ],
             ),
             const Divider(height: 18, color: Color(0xFFF1F5F9)),
-            Row(
-              children: [
-                const Icon(Icons.location_on_outlined, color: Color(0xFF64748B), size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Deliver to: $address',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF64748B),
+            InkWell(
+              key: const ValueKey('product_details_address_row'),
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SavedAddressesScreen(isStandalone: true),
+                  ),
+                );
+                if (mounted) {
+                  setState(() {
+                    _deliveryAddress = AddressRepository().getDefaultAddress();
+                  });
+                }
+              },
+              child: Row(
+                children: [
+                  const Icon(Icons.location_on_outlined, color: Color(0xFF64748B), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      displayText,
+                      key: const ValueKey('product_details_address_text'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: hasValidAddress ? const Color(0xFF64748B) : const Color(0xFF166534),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF94A3B8),
+                    size: 16,
+                  ),
+                ],
+              ),
             ),
           ],
         ),

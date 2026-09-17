@@ -1,0 +1,55 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Root-level catalog collections & Store CMS
+    match /categories/{documentId} {
+      allow read, write: if true;
+    }
+
+    match /products/{documentId} {
+      allow read, write: if true;
+    }
+
+    match /coupons/{documentId} {
+      allow read, write: if true;
+    }
+
+    match /deals/{documentId} {
+      allow read, write: if true;
+    }
+
+    match /banners/{documentId} {
+      allow read, write: if true;
+    }
+
+    match /subscriptions/{documentId} {
+      allow read, write: if true;
+    }
+
+    // Direct Phone User Auth fallback
+    match /phone_users/{phoneId} {
+      allow read, write: if true;
+    }
+
+    // Top-level orders for live CMS management & Customer app
+    match /orders/{orderId} {
+      allow read, write: if true;
+    }
+
+    // 2. User-scoped data
+    match /users/{userId} {
+      allow read, write: if true;
+
+      match /{allSubcollections=**} {
+        allow read, write: if true;
+      }
+    }
+
+    // 3. Fallback
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

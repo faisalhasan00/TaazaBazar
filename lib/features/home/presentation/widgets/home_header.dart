@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../profile/presentation/notifications_screen.dart';
 
 /// Top header for HomeScreen with delivery address pill and search bar
 class HomeHeader extends StatelessWidget {
@@ -83,11 +84,10 @@ class HomeHeader extends StatelessWidget {
                   size: 24,
                 ),
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('No new notifications'),
-                      backgroundColor: Color(0xFF166534),
-                      behavior: SnackBarBehavior.floating,
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NotificationsScreen(),
                     ),
                   );
                 },

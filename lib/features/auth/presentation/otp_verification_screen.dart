@@ -1,18 +1,26 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/services/firebase_auth_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../location/presentation/location_setup_screen.dart';
+import '../../profile/data/profile_repository.dart';
 import 'widgets/otp_input_field.dart';
 
 /// Screen for 6-digit OTP phone number verification.
 class OtpVerificationScreen extends StatefulWidget {
   final String phoneNumber;
+  final String? userName;
+  final String? email;
+  final String? referralCode;
 
   const OtpVerificationScreen({
     super.key,
     required this.phoneNumber,
+    this.userName,
+    this.email,
+    this.referralCode,
   });
 
   @override
@@ -23,6 +31,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   String _enteredOtp = '';
   int _resendCountdown = 30;
   Timer? _timer;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -57,46 +66,196 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     if (clean.length == 10) {
       return '+91 ${clean.substring(0, 5)} ${clean.substring(5)}';
     }
-    return '+91 ${widget.phoneNumber}';
+    if (clean.length == 12 && clean.startsWith('91')) {
+      final sub = clean.substring(2);
+      return '+91 ${sub.substring(0, 5)} ${sub.substring(5)}';
+    }
+    return widget.phoneNumber;
   }
 
-  void _handleVerify() {
-    // Mock validation: allow any 6-digit code or demo submission
-    final code = _enteredOtp.isEmpty ? '123456' : _enteredOtp;
-    debugPrint('Mock verifying TaazaBazar OTP: $code');
+  Future<void> _handleVerify() async {
+    if (_isLoading) return;
 
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const LocationSetupScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOutCubic;
-          final tween =
-              Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
-      ),
-    );
-  }
-
-  void _handleResend() {
-    if (_resendCountdown == 0) {
-      _startResendTimer();
+    final code = _enteredOtp.trim();
+    if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: AppColors.primary,
+          content: const Text('Please enter the complete 6-digit verification code.'),
+          backgroundColor: const Color(0xFFDC2626),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          content: const Text(
-            'New 6-digit verification code sent.',
-            style: TextStyle(color: Colors.white),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final beforeUid = FirebaseAuthService().currentUserId;
+      final result = await FirebaseAuthService().verifyPhoneOtp(smsCode: code);
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result.isSuccess) {
+        final afterUid = FirebaseAuthService().currentUserId;
+        if (!result.isReturningUser && beforeUid != null && afterUid != null && beforeUid != afterUid) {
+          debugPrint('FirebaseAuthService: Unexpected UID shift detected for new user from $beforeUid to $afterUid');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Authentication session error. Please restart the app.'),
+              backgroundColor: const Color(0xFFDC2626),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+          return;
+        }
+
+        // 1. If registering user with name/email, save to profile
+        if (widget.userName != null && widget.userName!.trim().isNotEmpty) {
+          try {
+            await result.user?.updateDisplayName(widget.userName!.trim());
+            await ProfileRepository().updateProfile(
+              name: widget.userName!.trim(),
+              phone: widget.phoneNumber,
+              email: widget.email?.trim() ?? '',
+            );
+          } catch (e) {
+            debugPrint('OtpVerificationScreen: Error saving profile after registration: $e');
+          }
+        } else {
+          // If existing/login user, ensure Firestore profile document exists
+          try {
+            await ProfileRepository().createProfileIfMissing();
+          } catch (e) {
+            debugPrint('OtpVerificationScreen: Error initializing profile: $e');
+          }
+        }
+
+        if (!mounted) return;
+
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const LocationSetupScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
+              const curve = Curves.easeInOutCubic;
+              final tween =
+                  Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+          ),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.errorMessage ?? 'Verification failed. Please check the code and try again.'),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(FirebaseAuthService.mapAuthError(e)),
+          backgroundColor: const Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleResend() async {
+    if (_resendCountdown > 0 || _isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final result = await FirebaseAuthService().sendPhoneOtp(
+        phoneNumber: widget.phoneNumber,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result.isSuccess) {
+        _startResendTimer();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            content: const Text(
+              'New 6-digit verification code sent.',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            content: Text(
+              result.errorMessage ?? 'Failed to resend verification code.',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          content: Text(
+            FirebaseAuthService.mapAuthError(e),
+            style: const TextStyle(color: Colors.white),
           ),
         ),
       );
@@ -203,7 +362,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: _handleVerify,
+                      onPressed: _isLoading ? null : _handleVerify,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -213,21 +372,31 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Verify & Continue',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Verify & Continue',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.arrow_forward_rounded, size: 18),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward_rounded, size: 18),
-                        ],
-                      ),
                     ),
                   ),
                   const SizedBox(height: 28),
@@ -256,7 +425,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                             ],
                           )
                         : TextButton(
-                            onPressed: _handleResend,
+                            onPressed: _isLoading ? null : _handleResend,
                             child: Text(
                               'Resend code',
                               style: GoogleFonts.plusJakartaSans(

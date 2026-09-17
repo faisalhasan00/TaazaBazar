@@ -82,6 +82,51 @@ class Product {
   String get displayStorageInfo {
     return storageInfo ?? 'Store in a cool, ventilated dry area or refrigerate';
   }
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'categoryId': categoryId,
+      'categoryName': categoryName,
+      'unit': unit,
+      'price': price,
+      'originalPrice': originalPrice,
+      'emoji': emoji,
+      'bgColor': bgColor.toARGB32(),
+      'badge': badge,
+      'rating': rating,
+      'reviewsCount': reviewsCount,
+      'isOrganic': isOrganic,
+      'description': description,
+      'benefits': benefits,
+      'shelfLife': shelfLife,
+      'storageInfo': storageInfo,
+      'farmOrigin': farmOrigin,
+    };
+  }
+
+  factory Product.fromMap(Map<String, dynamic> map, [String? docId]) {
+    return Product(
+      id: docId ?? map['id']?.toString() ?? '',
+      name: map['name']?.toString() ?? '',
+      categoryId: map['categoryId']?.toString() ?? 'veg',
+      categoryName: map['categoryName']?.toString() ?? 'Vegetables',
+      unit: map['unit']?.toString() ?? '1 kg',
+      price: (map['price'] as num?)?.toDouble() ?? 0.0,
+      originalPrice: (map['originalPrice'] as num?)?.toDouble(),
+      emoji: map['emoji']?.toString() ?? '🥦',
+      bgColor: map['bgColor'] != null ? Color(map['bgColor'] as int) : const Color(0xFFF0FDF4),
+      badge: map['badge']?.toString(),
+      rating: (map['rating'] as num?)?.toDouble() ?? 4.8,
+      reviewsCount: (map['reviewsCount'] as num?)?.toInt() ?? 120,
+      isOrganic: map['isOrganic'] == true,
+      description: map['description']?.toString(),
+      benefits: (map['benefits'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+      shelfLife: map['shelfLife']?.toString(),
+      storageInfo: map['storageInfo']?.toString(),
+      farmOrigin: map['farmOrigin']?.toString(),
+    );
+  }
 }
 
 /// Category Model for Freshly Catalog
@@ -103,4 +148,28 @@ class FreshCategory {
     this.iconColor = const Color(0xFF1B6E38),
     this.itemCount = 12,
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'emoji': emoji,
+      'subtitle': subtitle,
+      'bgColor': bgColor.toARGB32(),
+      'iconColor': iconColor.toARGB32(),
+      'itemCount': itemCount,
+    };
+  }
+
+  factory FreshCategory.fromMap(Map<String, dynamic> map, [String? docId]) {
+    return FreshCategory(
+      id: docId ?? map['id']?.toString() ?? '',
+      name: map['name']?.toString() ?? '',
+      emoji: map['emoji']?.toString() ?? '🥬',
+      subtitle: map['subtitle']?.toString() ?? '',
+      bgColor: map['bgColor'] != null ? Color(map['bgColor'] as int) : const Color(0xFFEDF7EF),
+      iconColor: map['iconColor'] != null ? Color(map['iconColor'] as int) : const Color(0xFF1B6E38),
+      itemCount: (map['itemCount'] as num?)?.toInt() ?? 12,
+    );
+  }
 }

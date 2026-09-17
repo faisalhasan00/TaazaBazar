@@ -1,0 +1,45 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ],
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "taazabazar-cd20d",
+          "appId": "1:752330450569:android:126015a7aaea3ae4054858",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "taazabazar-cd20d",
+          "configurations": {
+            "android": "1:752330450569:android:126015a7aaea3ae4054858",
+            "ios": "1:481658178671:ios:6c18e7092653fe02e2919a",
+            "macos": "1:481658178671:ios:6c18e7092653fe02e2919a",
+            "web": "1:481658178671:web:b434a03ebcc20bfbe2919a",
+            "windows": "1:481658178671:web:127858d1293af5f4e2919a"
+          }
+        }
+      }
+    }
+  }
+}

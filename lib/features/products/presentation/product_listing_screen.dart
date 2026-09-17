@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../cart/domain/cart_item.dart';
 import '../../cart/presentation/cart_screen.dart';
-import '../data/mock_products_data.dart';
+import '../data/product_repository.dart';
 import '../domain/product_model.dart';
 import 'product_details_screen.dart';
 
@@ -23,6 +24,9 @@ class ProductListingScreen extends StatefulWidget {
 }
 
 class _ProductListingScreenState extends State<ProductListingScreen> {
+  final _productRepo = ProductRepository();
+  late List<Product> _products;
+  StreamSubscription<List<Product>>? _productsSubscription;
   late Map<String, int> _cartQuantities;
   String _selectedFilter = 'All';
   String _selectedSort = 'Popularity';
@@ -75,10 +79,19 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
   void initState() {
     super.initState();
     _cartQuantities = Map<String, int>.from(widget.initialCartQuantities ?? {});
+    _products = List.from(_productRepo.getProductsByCategory(widget.category.id));
+    _productsSubscription = _productRepo.getProductsStream(categoryId: widget.category.id).listen((list) {
+      if (mounted && list.isNotEmpty) {
+        setState(() {
+          _products = list;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _productsSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -115,17 +128,17 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
   double get _totalCartSubtotal {
     double total = 85.0; // base mock subtotal
     for (var entry in _cartQuantities.entries) {
-      final prod = MockProductsData.allProducts.firstWhere(
-        (p) => p.id == entry.key,
-        orElse: () => MockProductsData.allProducts.first,
-      );
-      total += prod.price * entry.value;
+      final prod = _productRepo.getProductById(entry.key) ??
+          (_products.isNotEmpty ? _products.first : null);
+      if (prod != null) {
+        total += prod.price * entry.value;
+      }
     }
     return total;
   }
 
   List<Product> get _filteredProducts {
-    List<Product> list = MockProductsData.getProductsByCategory(widget.category.id);
+    List<Product> list = List.from(_products);
 
     // Apply text search
     if (_searchQuery.trim().isNotEmpty) {
@@ -1066,11 +1079,11 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
               final List<CartItem> items = [];
               _cartQuantities.forEach((id, qty) {
                 if (qty > 0) {
-                  final product = MockProductsData.allProducts.firstWhere(
-                    (p) => p.id == id,
-                    orElse: () => MockProductsData.allProducts[0],
-                  );
-                  items.add(CartItem(product: product, quantity: qty));
+                  final product = _productRepo.getProductById(id) ??
+                      (_products.isNotEmpty ? _products.first : null);
+                  if (product != null) {
+                    items.add(CartItem(product: product, quantity: qty));
+                  }
                 }
               });
 
